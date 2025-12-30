@@ -284,8 +284,8 @@
   function resolveLidToPhone(lid) {
     if (!lid) return null;
     
-    // Limpar o LID
-    const cleanLid = String(lid).replace('@lid', '').replace('@c.us', '').replace('@s.whatsapp.net', '');
+    // Limpar o LID usando o regex padrão
+    const cleanLid = String(lid).replace(WHATSAPP_SUFFIXES_REGEX, '');
     
     try {
       // Check if require is available (when running in WhatsApp Web context)
@@ -301,7 +301,7 @@
       if (contact && contact.phoneNumber) {
         const phone = contact.phoneNumber._serialized || contact.phoneNumber.user;
         if (phone) {
-          const cleanPhone = String(phone).replace('@c.us', '').replace('@s.whatsapp.net', '');
+          const cleanPhone = String(phone).replace(WHATSAPP_SUFFIXES_REGEX, '');
           // Validar se é um número válido
           if (/^\d{10,15}$/.test(cleanPhone)) {
             console.log('[WHL Test] LID resolvido:', cleanLid, '→', cleanPhone);
@@ -320,7 +320,7 @@
       if (found && found.phoneNumber) {
         const phone = found.phoneNumber._serialized || found.phoneNumber.user;
         if (phone) {
-          const cleanPhone = String(phone).replace('@c.us', '').replace('@s.whatsapp.net', '');
+          const cleanPhone = String(phone).replace(WHATSAPP_SUFFIXES_REGEX, '');
           if (/^\d{10,15}$/.test(cleanPhone)) {
             console.log('[WHL Test] LID resolvido via busca:', cleanLid, '→', cleanPhone);
             return cleanPhone;
@@ -355,6 +355,9 @@
       message?.id?.participant?.user
     ];
     
+    // Coletar LIDs encontrados para fallback
+    const foundLids = [];
+    
     for (const src of sources) {
       if (!src) continue;
       let s = String(src).trim();
@@ -364,6 +367,11 @@
         const resolved = resolveLidToPhone(s);
         if (resolved) {
           return resolved;
+        }
+        // Coletar LID para fallback
+        const lidMatch = s.match(/(\d{10,15})@lid/);
+        if (lidMatch) {
+          foundLids.push(lidMatch[1]);
         }
         continue; // Pular este source se não conseguir resolver
       }
@@ -380,18 +388,11 @@
       }
     }
     
-    // Fallback: tentar resolver qualquer LID encontrado nos sources
-    for (const src of sources) {
-      if (!src) continue;
-      const s = String(src).trim();
-      
-      // Extrair o ID numérico do LID
-      const lidMatch = s.match(/(\d{10,15})@lid/);
-      if (lidMatch) {
-        const resolved = resolveLidToPhone(lidMatch[1]);
-        if (resolved) {
-          return resolved;
-        }
+    // Fallback: tentar resolver LIDs coletados
+    for (const lid of foundLids) {
+      const resolved = resolveLidToPhone(lid);
+      if (resolved) {
+        return resolved;
       }
     }
     
