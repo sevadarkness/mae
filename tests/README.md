@@ -36,6 +36,17 @@ Validates image rendering in the recover timeline:
 - Mixed content scenarios (text vs images)
 - Edge cases
 
+### 4. Template Manager Tests (`template-manager.test.js`)
+
+Validates the TemplateManager class functionality:
+- Variable processing (saudacao based on time of day)
+- Contact data replacement ({nome}, {empresa}, {numero})
+- Date and time formatting ({data}, {hora})
+- Case-insensitive variable matching
+- Empty contact handling
+- Category filtering
+- Template lookup by ID
+
 ## How to Run Tests
 
 1. **Load the extension** in Chrome/Edge (Developer Mode)
