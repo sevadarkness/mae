@@ -24,6 +24,13 @@ self.addEventListener('unhandledrejection', (event) => {
     console.error('[WHL Background] Unhandled promise rejection:', event.reason);
 });
 
+// ===== BUG FIX 2: Side Panel Behavior =====
+// Set panel behavior to open on action click (clicking extension icon)
+// This must be done BEFORE any tabs are opened to ensure it works consistently
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
+  .then(() => console.log('[WHL Background] ✅ Side panel set to open on action click'))
+  .catch(e => console.warn('[WHL Background] setPanelBehavior failed:', e));
+
 // ===== CONFIGURATION CONSTANTS =====
 const SEND_MESSAGE_TIMEOUT_MS = 45000; // 45 seconds timeout for message sending
 const NETSNIFFER_CLEANUP_INTERVAL_MS = 300000; // 5 minutes - periodic cleanup to prevent memory leaks
@@ -586,6 +593,15 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
     
+    // BUG FIX 2: Set popup dynamically based on tab URL
+    if (isWhatsAppWebURL(tab.url)) {
+      // On WhatsApp: no popup, clicking icon opens side panel
+      await chrome.action.setPopup({ popup: '' });
+    } else {
+      // On other tabs: show popup
+      await chrome.action.setPopup({ popup: 'popup/popup.html' });
+    }
+    
     if (chrome.sidePanel && chrome.sidePanel.setOptions) {
       if (isWhatsAppWebURL(tab.url)) {
         // Enable side panel for WhatsApp Web tabs
@@ -614,6 +630,15 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // Only act when URL changes
   if (changeInfo.url) {
     try {
+      // BUG FIX 2: Set popup dynamically based on URL change
+      if (isWhatsAppWebURL(changeInfo.url)) {
+        // On WhatsApp: no popup, clicking icon opens side panel
+        await chrome.action.setPopup({ popup: '' });
+      } else {
+        // On other tabs: show popup
+        await chrome.action.setPopup({ popup: 'popup/popup.html' });
+      }
+      
       if (chrome.sidePanel && chrome.sidePanel.setOptions) {
         if (isWhatsAppWebURL(changeInfo.url)) {
           // Enable side panel for WhatsApp Web

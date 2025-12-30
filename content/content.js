@@ -3155,6 +3155,15 @@
         const check = () => {
           attempts++;
           
+          // BUG FIX 1: Detectar erro de número inexistente (EXATA mensagem do WhatsApp)
+          // Verificar primeiro o body text (mensagem exata do WhatsApp)
+          const bodyText = document.body.innerText || document.body.textContent || '';
+          if (bodyText.includes('O número de telefone compartilhado por url é inválido')) {
+            console.log('[WHL] ❌ Número inexistente detectado');
+            resolve({ success: false, error: 'Número inexistente', errorType: 'INVALID_NUMBER' });
+            return;
+          }
+          
           // BUG FIX 1: Detectar popups/modals de erro do WhatsApp
           const errorPopup = document.querySelector('[data-testid="popup-contents"]');
           const invalidPhonePopup = document.querySelector('[data-testid="phone-invalid-popup"]');
