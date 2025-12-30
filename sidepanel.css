@@ -418,6 +418,13 @@ body {
     animation: bounce 2s ease-in-out infinite;
 }
 
+.logo-icon-img {
+    width: 28px;
+    height: 28px;
+    margin-right: 8px;
+    border-radius: 6px;
+}
+
 @keyframes bounce {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-5px); }
