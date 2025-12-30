@@ -20,6 +20,13 @@ class PopupController {
             FINISHING: 100      // 95-100%
         };
 
+        // Constantes de conexão
+        this.CONNECTION = {
+            MAX_RETRIES: 3,           // Número de tentativas para verificar conexão
+            RETRY_DELAY_MS: 800,      // Delay entre tentativas (ms)
+            ERROR_MESSAGE: 'Conexão perdida. Clique no ícone da extensão para reconectar.'
+        };
+
         // Estado de extração
         this.extractionState = {
             isRunning: false,
@@ -635,6 +642,35 @@ class PopupController {
                 return;
             }
 
+            // NOVO: Verificar conexão antes de prosseguir
+            let isConnected = false;
+            
+            for (let attempt = 1; attempt <= this.CONNECTION.MAX_RETRIES; attempt++) {
+                try {
+                    console.log(`[SidePanel] Verificando conexão (tentativa ${attempt}/${this.CONNECTION.MAX_RETRIES})...`);
+                    const checkResult = await this.sendMessage('checkPage');
+                    if (checkResult?.success && checkResult?.isWhatsApp) {
+                        isConnected = true;
+                        console.log('[SidePanel] ✅ Conexão OK');
+                        break;
+                    }
+                } catch (e) {
+                    console.log(`[SidePanel] ⚠️ Tentativa ${attempt} falhou:`, e.message);
+                    if (attempt < this.CONNECTION.MAX_RETRIES) {
+                        await this.delay(this.CONNECTION.RETRY_DELAY_MS);
+                    }
+                }
+            }
+            
+            if (!isConnected) {
+                // Mostrar dica de reconexão
+                this.showReconnectTip();
+                throw new Error(this.CONNECTION.ERROR_MESSAGE);
+            }
+            
+            // Ocultar dica se estava visível
+            this.hideReconnectTip();
+
             const response = await this.sendMessage('getGroups', { 
                 includeArchived: includeArchived 
             });
@@ -663,6 +699,7 @@ class PopupController {
                 this.setFilter('all');
                 this.goToStep(2);
                 this.hideTipBubble();
+                this.hideReconnectTip();
             } else {
                 throw new Error(response?.error || 'Não foi possível carregar os grupos');
             }
@@ -687,6 +724,23 @@ class PopupController {
     showTipBubble() {
         if (this.tipBubble) {
             this.tipBubble.classList.remove('hidden');
+        }
+    }
+
+    // ========================================
+    // RECONNECT TIP
+    // ========================================
+    showReconnectTip() {
+        const tip = document.getElementById('reconnectTip');
+        if (tip) {
+            tip.style.display = 'block';
+        }
+    }
+
+    hideReconnectTip() {
+        const tip = document.getElementById('reconnectTip');
+        if (tip) {
+            tip.style.display = 'none';
         }
     }
 

@@ -697,6 +697,18 @@ body {
     line-height: 1.6;
 }
 
+/* Dica de reconexão - warning variant */
+.tip-bubble.tip-warning {
+    margin-top: 12px;
+    background: rgba(255, 193, 7, 0.15);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: #ffc107;
+}
+
+.tip-bubble.tip-warning strong {
+    color: #fff;
+}
+
 /* ========================================
    OPÇÕES DE CARREGAMENTO
 ======================================== */
