@@ -217,32 +217,58 @@ async function handleOpenSidePanelView(message, sender, sendResponse) {
       whl_active_windowId: (typeof windowId === 'number') ? windowId : null
     });
 
+    // BUG FIX 2: Always try to open the side panel with proper error handling
     if (chrome.sidePanel && chrome.sidePanel.open) {
-      try {
-        if (typeof tabId === 'number') {
+      let openSuccess = false;
+      
+      // Try 1: Open with specific tabId if available
+      if (typeof tabId === 'number') {
+        try {
           await chrome.sidePanel.open({ tabId });
-        } else if (typeof windowId === 'number') {
+          openSuccess = true;
+          console.log('[WHL Background] Side panel opened for tab:', tabId);
+        } catch (e1) {
+          console.warn('[WHL Background] Failed to open side panel with tabId:', e1.message);
+        }
+      }
+      
+      // Try 2: Open with windowId if tabId failed
+      if (!openSuccess && typeof windowId === 'number') {
+        try {
           await chrome.sidePanel.open({ windowId });
-        } else {
+          openSuccess = true;
+          console.log('[WHL Background] Side panel opened for window:', windowId);
+        } catch (e2) {
+          console.warn('[WHL Background] Failed to open side panel with windowId:', e2.message);
+        }
+      }
+      
+      // Try 3: Query active tab and try again
+      if (!openSuccess) {
+        try {
           const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
           if (tabs?.[0]?.id != null) {
             await chrome.sidePanel.open({ tabId: tabs[0].id });
+            openSuccess = true;
+            console.log('[WHL Background] Side panel opened for queried tab:', tabs[0].id);
           }
-        }
-      } catch (e1) {
-        // Fallback attempts
-        try {
-          if (typeof windowId === 'number') {
-            await chrome.sidePanel.open({ windowId });
-          }
-        } catch (_) {
-          // Ignore
+        } catch (e3) {
+          console.warn('[WHL Background] Failed to open side panel with queried tab:', e3.message);
         }
       }
+      
+      if (!openSuccess) {
+        console.error('[WHL Background] All attempts to open side panel failed');
+        sendResponse({ success: false, error: 'Failed to open side panel after multiple attempts' });
+        return;
+      }
+    } else {
+      console.warn('[WHL Background] chrome.sidePanel.open is not available');
     }
 
     sendResponse({ success: true, view });
   } catch (e) {
+    console.error('[WHL Background] Error in handleOpenSidePanelView:', e);
     sendResponse({ success: false, error: e?.message || String(e) });
   }
 }
@@ -534,5 +560,77 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     })();
     return true;
+  }
+});
+
+// ===== BUG FIX 3: Side Panel Tab Management =====
+// Disable side panel when user navigates away from WhatsApp Web
+// Enable it when user returns to WhatsApp Web
+
+// Helper function to check if URL is WhatsApp Web
+function isWhatsAppWebURL(url) {
+  if (!url) return false;
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname === 'web.whatsapp.com' && urlObj.protocol === 'https:';
+  } catch (e) {
+    return false;
+  }
+}
+
+// Listen for tab activation (user switches to different tab)
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  try {
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    
+    if (chrome.sidePanel && chrome.sidePanel.setOptions) {
+      if (isWhatsAppWebURL(tab.url)) {
+        // Enable side panel for WhatsApp Web tabs
+        await chrome.sidePanel.setOptions({
+          tabId: activeInfo.tabId,
+          enabled: true,
+          path: 'sidepanel.html'
+        });
+        console.log('[WHL Background] Side panel enabled for WhatsApp tab:', activeInfo.tabId);
+      } else {
+        // Disable side panel for non-WhatsApp tabs
+        await chrome.sidePanel.setOptions({
+          tabId: activeInfo.tabId,
+          enabled: false
+        });
+        console.log('[WHL Background] Side panel disabled for non-WhatsApp tab:', activeInfo.tabId);
+      }
+    }
+  } catch (e) {
+    console.warn('[WHL Background] Error in onActivated listener:', e);
+  }
+});
+
+// Listen for tab URL updates (user navigates within the same tab)
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // Only act when URL changes
+  if (changeInfo.url) {
+    try {
+      if (chrome.sidePanel && chrome.sidePanel.setOptions) {
+        if (isWhatsAppWebURL(changeInfo.url)) {
+          // Enable side panel for WhatsApp Web
+          await chrome.sidePanel.setOptions({
+            tabId: tabId,
+            enabled: true,
+            path: 'sidepanel.html'
+          });
+          console.log('[WHL Background] Side panel enabled after navigation to WhatsApp:', tabId);
+        } else {
+          // Disable side panel when leaving WhatsApp Web
+          await chrome.sidePanel.setOptions({
+            tabId: tabId,
+            enabled: false
+          });
+          console.log('[WHL Background] Side panel disabled after navigation away from WhatsApp:', tabId);
+        }
+      }
+    } catch (e) {
+      console.warn('[WHL Background] Error in onUpdated listener:', e);
+    }
   }
 });

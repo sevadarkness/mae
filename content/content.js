@@ -3132,30 +3132,85 @@
       console.log('[WHL] 🔗 Abrindo chat via URL...');
       window.location.href = `https://web.whatsapp.com/send?phone=${phone}`;
       
-      // Aguardar página carregar e input aparecer
-      const chatOpened = await new Promise(resolve => {
+      // Aguardar página carregar e verificar por erros ou input
+      const result = await new Promise(resolve => {
         let attempts = 0;
         const check = () => {
           attempts++;
+          
+          // BUG FIX 1: Detectar popups/modals de erro do WhatsApp
+          const errorPopup = document.querySelector('[data-testid="popup-contents"]');
+          const invalidPhonePopup = document.querySelector('[data-testid="phone-invalid-popup"]');
+          const alertDialog = document.querySelector('[role="alert"]');
+          
+          // Verificar texto de erro nos popups
+          if (errorPopup) {
+            const errorText = errorPopup.textContent || '';
+            if (errorText.includes('inválido') || 
+                errorText.includes('invalid') || 
+                errorText.includes('não existe') ||
+                errorText.includes("doesn't exist") ||
+                errorText.includes('não encontrado') ||
+                errorText.includes('not found')) {
+              console.error('[WHL] ❌ Número inválido detectado no popup');
+              resolve({ success: false, error: 'Número inexistente', errorType: 'INVALID_NUMBER' });
+              return;
+            }
+          }
+          
+          if (invalidPhonePopup) {
+            console.error('[WHL] ❌ Popup de número inválido detectado');
+            resolve({ success: false, error: 'Número inexistente', errorType: 'INVALID_NUMBER' });
+            return;
+          }
+          
+          if (alertDialog) {
+            const alertText = alertDialog.textContent || '';
+            if (alertText.includes('inválido') || 
+                alertText.includes('invalid') ||
+                alertText.includes('não existe') ||
+                alertText.includes("doesn't exist")) {
+              console.error('[WHL] ❌ Alert de número inválido detectado');
+              resolve({ success: false, error: 'Número inexistente', errorType: 'INVALID_NUMBER' });
+              return;
+            }
+          }
+          
+          // Verificar se chat foi aberto corretamente
           const input = document.querySelector('[data-testid="conversation-compose-box-input"]') ||
                         document.querySelector('footer [contenteditable="true"]');
           
           if (input) {
             console.log('[WHL] ✅ Chat aberto, input encontrado');
-            resolve(true);
+            resolve({ success: true });
           } else if (attempts < 60) {
             setTimeout(check, 500);
           } else {
             console.error('[WHL] ⏱️ Timeout aguardando input');
-            resolve(false);
+            resolve({ success: false, error: 'CHAT_OPEN_TIMEOUT', errorType: 'TIMEOUT' });
           }
         };
         setTimeout(check, 2000); // Aguardar página começar a carregar
       });
       
-      if (!chatOpened) {
-        return { success: false, error: 'CHAT_OPEN_TIMEOUT' };
+      if (!result.success) {
+        return result;
       }
+    }
+    
+    // BUG FIX 1: Validar que o chat aberto corresponde ao número esperado
+    const validation = await validateOpenChat(phone);
+    if (!validation.valid) {
+      console.error('[WHL] ❌ Chat aberto não corresponde ao número esperado');
+      console.error('[WHL] Esperado:', phone);
+      console.error('[WHL] Chat atual:', validation.chatNumber || 'não detectado');
+      return { 
+        success: false, 
+        error: validation.chatNumber ? 
+          `Chat incorreto (esperado: ${phone}, atual: ${validation.chatNumber})` : 
+          'Número inexistente',
+        errorType: 'WRONG_CHAT'
+      };
     }
     
     // Encontrar input
@@ -3448,7 +3503,14 @@
       // Falha
       console.log('[WHL] ❌ Falha ao enviar para', cur.phone, ':', result.error);
       cur.status = 'failed';
-      cur.errorReason = result.error;
+      
+      // BUG FIX 1: Categorizar erro - número inexistente vs outros erros
+      if (result.errorType === 'INVALID_NUMBER' || result.errorType === 'WRONG_CHAT') {
+        cur.errorReason = 'Número inexistente';
+      } else {
+        cur.errorReason = result.error;
+      }
+      
       st.stats.failed++;
       st.stats.pending--;
     }
