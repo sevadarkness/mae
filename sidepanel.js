@@ -64,12 +64,6 @@ class PopupController {
             this.bindEventsOptimized();
             this.setupHistoryEventDelegation(); // Configurar event delegation do histórico
             this.initStorage();
-            this.checkWhatsAppTab();
-            
-            // BUG FIX 3: Verificar periodicamente se está no WhatsApp (a cada 2 segundos)
-            this.whatsappCheckInterval = setInterval(() => {
-                this.checkWhatsAppTab();
-            }, 2000);
         });
     }
 
@@ -460,57 +454,18 @@ class PopupController {
     // VERIFICAÇÃO INICIAL
     // ========================================
     async checkWhatsAppTab() {
-        try {
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            const tab = tabs[0];
-
-            // Validação segura de URL
-            let isWhatsAppWeb = false;
-            try {
-                const url = new URL(tab?.url || '');
-                isWhatsAppWeb = url.hostname === 'web.whatsapp.com';
-            } catch (e) {
-                // URL inválida
-                isWhatsAppWeb = false;
-            }
-
-            if (!isWhatsAppWeb) {
-                this.showNotWhatsAppMessage();
-                if (this.btnLoadGroups) this.btnLoadGroups.disabled = true;
-                return false;
-            } else {
-                this.hideNotWhatsAppMessage();
-                return true;
-            }
-        } catch (error) {
-            console.error('[SidePanel] Erro ao verificar tab:', error);
-            return true; // Em caso de erro, não bloquear
-        }
+        // Sidepanel sempre ativo - o usuário decide quando usar
+        // A verificação de conexão é feita com retry no loadGroups()
+        return true;
     }
     
-    // BUG FIX 3: Mostrar overlay quando não está no WhatsApp
+    // Métodos mantidos para compatibilidade (não fazem mais nada)
     showNotWhatsAppMessage() {
-        let overlay = document.getElementById('whl-not-whatsapp-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'whl-not-whatsapp-overlay';
-            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:99999;color:white;font-family:system-ui;';
-            overlay.innerHTML = `
-                <div style="font-size:48px;margin-bottom:20px;">📱</div>
-                <div style="font-size:18px;font-weight:bold;margin-bottom:10px;">WhatsApp Web não detectado</div>
-                <div style="font-size:14px;color:#888;text-align:center;max-width:280px;">
-                    Abra o WhatsApp Web em uma aba para usar esta extensão.
-                </div>
-            `;
-            document.body.appendChild(overlay);
-        }
-        overlay.style.display = 'flex';
+        // Não bloqueamos mais - sidepanel sempre ativo
     }
     
-    // BUG FIX 3: Ocultar overlay quando está no WhatsApp
     hideNotWhatsAppMessage() {
-        const overlay = document.getElementById('whl-not-whatsapp-overlay');
-        if (overlay) overlay.style.display = 'none';
+        // Não bloqueamos mais - sidepanel sempre ativo
     }
 
     // ========================================
