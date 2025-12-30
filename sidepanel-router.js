@@ -1728,9 +1728,9 @@
           <tr>
             <td>${escapeHtml(time)}</td>
             <td>${s.contactCount}</td>
-            <td><span class="sp-pill">${statusText}</span></td>
+            <td><span class="sp-pill">${escapeHtml(statusText)}</span></td>
             <td>
-              <button class="sp-btn sp-btn-danger" data-remove-schedule="${s.id}" style="padding:6px 8px">🗑️</button>
+              <button class="sp-btn sp-btn-danger" data-remove-schedule="${escapeHtml(s.id)}" style="padding:6px 8px">🗑️</button>
             </td>
           </tr>
         `;
