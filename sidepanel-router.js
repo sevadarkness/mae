@@ -1073,7 +1073,7 @@
           <div class="card-footer">
             <span class="date">${ts.toLocaleDateString()}</span>
             <button class="copy-btn" data-copy="${encoded}">📋 Copiar</button>
-            <button class="download-btn" data-download="${encoded}" data-from="${escapeHtml(from)}" data-type="${escapeHtml(typeLabel)}">⬇️</button>
+            <button class="download-btn" data-download="${encoded}" data-from="${escapeHtml(from)}" data-type="${escapeHtml(typeLabel)}" data-timestamp="${h?.timestamp || Date.now()}">⬇️</button>
           </div>
         </div>
       </div>
@@ -1097,10 +1097,11 @@
       const enc = btn.getAttribute('data-download') || '';
       const from = btn.getAttribute('data-from') || 'Desconhecido';
       const typeLabel = btn.getAttribute('data-type') || 'Outro';
+      const timestamp = parseInt(btn.getAttribute('data-timestamp') || Date.now(), 10);
       const text = decodeURIComponent(enc);
       
       // Create CSV for single message
-      const ts = new Date();
+      const ts = new Date(timestamp);
       const headers = ['Número', 'Mensagem', 'Tipo', 'Data', 'Hora'];
       const row = [
         `"${from}"`,
