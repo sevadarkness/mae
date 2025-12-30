@@ -662,3 +662,115 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
   }
 });
+
+// ========================================
+// SCHEDULED CAMPAIGNS - ALARM HANDLERS
+// ========================================
+
+/**
+ * Handle alarm for scheduled campaigns
+ */
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  console.log('[WHL Background] Alarm triggered:', alarm.name);
+  
+  // Check if it's a scheduled campaign
+  if (alarm.name.startsWith('whl_schedule_')) {
+    const scheduleId = alarm.name.replace('whl_schedule_', '');
+    
+    try {
+      // Get schedule from storage
+      const data = await chrome.storage.local.get(['whl_schedules']);
+      const schedules = data.whl_schedules || [];
+      const schedule = schedules.find(s => s.id === scheduleId);
+      
+      if (!schedule) {
+        console.log('[WHL Background] Schedule not found:', scheduleId);
+        return;
+      }
+      
+      if (schedule.status !== 'pending') {
+        console.log('[WHL Background] Schedule already processed:', scheduleId);
+        return;
+      }
+      
+      // Show notification
+      try {
+        await chrome.notifications.create(`whl_schedule_ready_${scheduleId}`, {
+          type: 'basic',
+          iconUrl: 'icons/128.png',
+          title: '📅 Campanha Agendada',
+          message: `Iniciando: ${schedule.name}`,
+          priority: 2
+        });
+      } catch (notifError) {
+        console.warn('[WHL Background] Notification error:', notifError);
+      }
+      
+      // Send message to sidepanel to start campaign
+      try {
+        // Try to find active WhatsApp tab
+        const tabs = await chrome.tabs.query({ url: 'https://web.whatsapp.com/*' });
+        
+        if (tabs.length > 0) {
+          // Send message to content script to trigger campaign
+          await chrome.tabs.sendMessage(tabs[0].id, {
+            action: 'START_SCHEDULED_CAMPAIGN',
+            schedule: schedule
+          });
+          
+          console.log('[WHL Background] Scheduled campaign triggered:', schedule.name);
+        } else {
+          console.warn('[WHL Background] No WhatsApp tab found for scheduled campaign');
+          
+          // Update schedule status to failed
+          const updatedSchedules = schedules.map(s => 
+            s.id === scheduleId ? { ...s, status: 'failed' } : s
+          );
+          await chrome.storage.local.set({ whl_schedules: updatedSchedules });
+        }
+      } catch (error) {
+        console.error('[WHL Background] Error starting scheduled campaign:', error);
+        
+        // Update schedule status to failed
+        const updatedSchedules = schedules.map(s => 
+          s.id === scheduleId ? { ...s, status: 'failed' } : s
+        );
+        await chrome.storage.local.set({ whl_schedules: updatedSchedules });
+      }
+    } catch (error) {
+      console.error('[WHL Background] Error handling alarm:', error);
+    }
+  }
+});
+
+/**
+ * Clean up old alarms on extension start
+ */
+chrome.runtime.onStartup.addListener(async () => {
+  console.log('[WHL Background] Extension started, cleaning up old alarms');
+  
+  try {
+    const alarms = await chrome.alarms.getAll();
+    
+    // Get schedules from storage
+    const data = await chrome.storage.local.get(['whl_schedules']);
+    const schedules = data.whl_schedules || [];
+    const activeScheduleIds = new Set(
+      schedules.filter(s => s.status === 'pending').map(s => s.id)
+    );
+    
+    // Clear alarms for schedules that no longer exist or are not pending
+    for (const alarm of alarms) {
+      if (alarm.name.startsWith('whl_schedule_')) {
+        const scheduleId = alarm.name.replace('whl_schedule_', '');
+        
+        if (!activeScheduleIds.has(scheduleId)) {
+          await chrome.alarms.clear(alarm.name);
+          console.log('[WHL Background] Cleared orphan alarm:', alarm.name);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[WHL Background] Error cleaning up alarms:', error);
+  }
+});

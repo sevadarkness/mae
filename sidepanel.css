@@ -2024,3 +2024,331 @@ body {
   transform: translateY(-1px);
 }
 
+/* ========================================
+   NEW FEATURES - TEMPLATES, ANTI-BAN, SCHEDULER
+======================================== */
+
+/* Templates List */
+.templates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.template-item {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.template-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.template-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.template-name {
+  font-weight: 700;
+  font-size: 13px;
+  flex: 1;
+}
+
+.template-category {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 210, 106, 0.2);
+  border: 1px solid rgba(0, 210, 106, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.template-content {
+  font-size: 12px;
+  opacity: 0.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.template-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.template-actions button {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.template-actions button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Schedules List */
+.schedules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.schedule-item {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.schedule-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.schedule-item.pending {
+  border-color: rgba(0, 210, 106, 0.3);
+}
+
+.schedule-item.completed {
+  opacity: 0.6;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.schedule-item.failed {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.schedule-name {
+  font-weight: 700;
+  font-size: 13px;
+  flex: 1;
+}
+
+.schedule-status {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.schedule-status.pending {
+  background: rgba(251, 191, 36, 0.2);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.schedule-status.completed {
+  background: rgba(0, 210, 106, 0.2);
+  border: 1px solid rgba(0, 210, 106, 0.3);
+}
+
+.schedule-status.failed {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.schedule-info {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  opacity: 0.8;
+  flex-wrap: wrap;
+}
+
+.schedule-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.schedule-contacts {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.schedule-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.schedule-actions button {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.schedule-actions button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.schedule-actions button.delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* Checkbox custom style */
+.sp-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sp-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.sp-checkbox span {
+  font-size: 13px;
+}
+
+/* Import preview modal */
+.import-preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.import-preview-content {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.import-preview-header {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.import-preview-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.import-stat {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.import-stat-value {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--color-primary);
+}
+
+.import-stat-label {
+  font-size: 11px;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.import-preview-list {
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.import-preview-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.import-preview-actions button {
+  flex: 1;
+}
+
+/* Cache indicator */
+.cache-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(0, 210, 106, 0.2);
+  border: 1px solid rgba(0, 210, 106, 0.3);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cache-indicator.expired {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+

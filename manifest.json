@@ -19,7 +19,9 @@
   },
   "permissions": [
     "activeTab",
+    "alarms",
     "downloads",
+    "notifications",
     "scripting",
     "sidePanel",
     "storage",
@@ -78,7 +80,13 @@
         "icons/48.png",
         "utils/google-sheets-export.js",
         "utils/storage.js",
-        "utils/utils-optimized.js"
+        "utils/utils-optimized.js",
+        "utils/anti-ban.js",
+        "utils/templates.js",
+        "utils/notifications.js",
+        "utils/group-cache.js",
+        "utils/contact-importer.js",
+        "utils/scheduler.js"
       ],
       "matches": [
         "https://api.whatsapp.com/*",

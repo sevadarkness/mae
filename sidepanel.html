@@ -42,6 +42,8 @@
     <div class="sp-row" style="margin-top:8px;align-items:center">
       <input id="sp_csv" type="file" accept=".csv,text/csv" style="display:none" />
       <button id="sp_select_csv" class="sp-btn sp-btn-secondary" style="flex:1">📊 Importar CSV</button>
+      <input id="sp_excel" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style="display:none" />
+      <button id="sp_select_excel" class="sp-btn sp-btn-secondary" style="flex:1">📊 Importar Excel</button>
       <button id="sp_clear_csv" class="sp-btn sp-btn-danger" style="display:none">🗑️ Remover</button>
     </div>
     <div id="sp_csv_hint" class="sp-status"></div>
@@ -516,6 +518,103 @@
 
     <div id="sp_report_hint" class="sp-status"></div>
   </div>
+
+  <!-- Templates -->
+  <div class="sp-card">
+    <div class="sp-title">📝 Templates de Mensagens</div>
+    <div class="sp-muted">Salve mensagens reutilizáveis com variáveis dinâmicas: {nome}, {empresa}, {data}, {hora}</div>
+    
+    <div class="sp-row" style="gap:8px">
+      <input id="templateName" class="sp-input" placeholder="Nome do template" style="flex:2">
+      <select id="templateCategory" class="sp-input" style="flex:1">
+        <option value="geral">Geral</option>
+        <option value="vendas">Vendas</option>
+        <option value="suporte">Suporte</option>
+        <option value="marketing">Marketing</option>
+      </select>
+    </div>
+    
+    <textarea id="templateContent" class="sp-textarea" placeholder="Mensagem... Use {nome}, {empresa}, {data}, {hora}" style="margin-top:8px;min-height:100px"></textarea>
+    
+    <div class="sp-row" style="margin-top:8px">
+      <button id="saveTemplate" class="sp-btn sp-btn-primary" style="flex:1">💾 Salvar Template</button>
+      <button id="exportTemplates" class="sp-btn sp-btn-secondary" style="flex:1">📤 Exportar</button>
+      <button id="importTemplates" class="sp-btn sp-btn-secondary" style="flex:1">📥 Importar</button>
+    </div>
+    
+    <input id="importTemplatesFile" type="file" accept=".json" style="display:none">
+    
+    <div class="sp-muted" style="margin-top:8px;font-size:11px">
+      <strong>Variáveis disponíveis:</strong> {nome}, {empresa}, {data}, {hora}
+    </div>
+    
+    <div id="templatesList" class="templates-list" style="margin-top:10px"></div>
+    <div id="template_status" class="sp-status"></div>
+  </div>
+
+  <!-- Anti-Ban -->
+  <div class="sp-card">
+    <div class="sp-title">🛡️ Anti-Ban Inteligente</div>
+    <div class="sp-muted">Sistema inteligente para evitar detecção de automação</div>
+    
+    <label class="sp-label">Limite diário de mensagens</label>
+    <input id="dailyLimit" type="number" class="sp-input" value="200" min="1" max="1000">
+    
+    <div class="sp-row" style="margin-top:10px;align-items:center;gap:8px">
+      <span class="sp-muted" style="font-size:12px">Enviadas hoje: <b id="sentToday">0</b></span>
+      <div style="flex:1;height:8px;background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden">
+        <div id="dailyProgress" style="height:100%;width:0%;background:var(--color-primary);transition:width 0.3s"></div>
+      </div>
+    </div>
+    
+    <label class="sp-checkbox" style="margin-top:10px">
+      <input type="checkbox" id="businessHoursOnly">
+      <span>Enviar apenas em horário comercial (8h-20h)</span>
+    </label>
+    
+    <div class="sp-row" style="margin-top:10px">
+      <button id="resetDailyCount" class="sp-btn sp-btn-secondary" style="flex:1">🔄 Reset Contador</button>
+    </div>
+    
+    <div id="antiban_status" class="sp-status"></div>
+  </div>
+
+  <!-- Notificações -->
+  <div class="sp-card">
+    <div class="sp-title">🔔 Notificações</div>
+    <div class="sp-muted">Receba alertas quando campanhas terminarem</div>
+    
+    <label class="sp-checkbox">
+      <input type="checkbox" id="enableNotifications" checked>
+      <span>Ativar notificações desktop</span>
+    </label>
+    
+    <label class="sp-checkbox" style="margin-top:8px">
+      <input type="checkbox" id="enableSounds" checked>
+      <span>Ativar sons de alerta</span>
+    </label>
+    
+    <div class="sp-row" style="margin-top:10px">
+      <button id="testNotification" class="sp-btn sp-btn-secondary" style="flex:1">🔔 Testar Notificação</button>
+    </div>
+    
+    <div id="notification_status" class="sp-status"></div>
+  </div>
+
+  <!-- Agendamentos -->
+  <div class="sp-card">
+    <div class="sp-title">📅 Agendamentos</div>
+    <div class="sp-muted">Agende múltiplas campanhas para horários específicos</div>
+    
+    <div class="sp-row" style="gap:8px">
+      <input id="scheduleName" class="sp-input" placeholder="Nome da campanha" style="flex:2">
+      <input id="scheduleTime" type="datetime-local" class="sp-input" style="flex:2">
+      <button id="addSchedule" class="sp-btn sp-btn-primary" style="white-space:nowrap">➕ Agendar</button>
+    </div>
+    
+    <div id="schedulesList" class="schedules-list" style="margin-top:10px"></div>
+    <div id="schedule_status" class="sp-status"></div>
+  </div>
 </section>
 
         </div>
@@ -538,9 +637,18 @@
     <script src="utils/utils-optimized.js"></script>
     <script src="utils/storage.js"></script>
     <script src="utils/google-sheets-export.js"></script>
+    <script src="utils/anti-ban.js"></script>
+    <script src="utils/templates.js"></script>
+    <script src="utils/notifications.js"></script>
+    <script src="utils/group-cache.js"></script>
+    <script src="utils/contact-importer.js"></script>
+    <script src="utils/scheduler.js"></script>
     <script src="onboarding.js"></script>
     <script src="sidepanel.js"></script>
     <script src="sidepanel-router.js"></script>
+    
+    <!-- SheetJS for Excel support -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
     <!-- Initialize Onboarding -->
     <script>
