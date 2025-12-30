@@ -593,6 +593,11 @@ class PopupController {
                     const remaining = await window.groupCache.getTimeRemaining();
                     this.showStatus(`📦 Grupos do cache (válido por ${remaining})`, 100);
                     
+                    // Show force refresh button
+                    if (this.btnForceRefresh) {
+                        this.btnForceRefresh.style.display = 'block';
+                    }
+                    
                     setTimeout(() => {
                         this.updateStats();
                         this.setFilter('all');
@@ -602,6 +607,11 @@ class PopupController {
                     }, 800);
                     return;
                 }
+            }
+
+            // Hide force refresh button when loading fresh
+            if (this.btnForceRefresh) {
+                this.btnForceRefresh.style.display = 'none';
             }
 
             // NOVO: Verificar conexão antes de prosseguir

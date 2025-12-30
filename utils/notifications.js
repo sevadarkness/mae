@@ -87,9 +87,9 @@ class NotificationSystem {
       oscillator.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
       oscillator.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
       
-      // Envelope
+      // Envelope (use linear ramp to avoid audio glitches)
       gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      gainNode.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.2);
       
       oscillator.type = 'sine';
       oscillator.start(ctx.currentTime);
@@ -120,7 +120,7 @@ class NotificationSystem {
       oscillator.frequency.setValueAtTime(146.83, ctx.currentTime + 0.15); // D3
       
       gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      gainNode.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.3);
       
       oscillator.type = 'triangle';
       oscillator.start(ctx.currentTime);
@@ -150,7 +150,7 @@ class NotificationSystem {
       oscillator.frequency.setValueAtTime(440.00, ctx.currentTime); // A4
       
       gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+      gainNode.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.25);
       
       oscillator.type = 'square';
       oscillator.start(ctx.currentTime);
@@ -187,7 +187,7 @@ class NotificationSystem {
         oscillator.frequency.setValueAtTime(note.freq, ctx.currentTime + note.start);
         
         gainNode.gain.setValueAtTime(0.3, ctx.currentTime + note.start);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + note.start + note.duration);
+        gainNode.gain.linearRampToValueAtTime(0.001, ctx.currentTime + note.start + note.duration);
         
         oscillator.type = 'sine';
         oscillator.start(ctx.currentTime + note.start);

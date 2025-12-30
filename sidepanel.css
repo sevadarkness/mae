@@ -2024,3 +2024,41 @@ body {
   transform: translateY(-1px);
 }
 
+
+/* ========================================
+   ADVANCED FEATURES STYLES
+======================================== */
+
+/* Anti-Ban progress bar container */
+.antiban-progress {
+    margin-top: 15px;
+}
+
+/* Scheduler table status pills */
+.sp-pill {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Checkbox labels */
+input[type="checkbox"] {
+    cursor: pointer;
+}
+
+input[type="checkbox"] + label {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Force refresh button */
+#btnForceRefresh {
+    opacity: 0.8;
+}
+
+#btnForceRefresh:hover {
+    opacity: 1;
+}

@@ -214,7 +214,8 @@ class ContactImporter {
     this.invalid = [];
     
     const seen = new Set();
-    const phoneRegex = /\d{10,15}/;
+    // Match phone numbers with optional formatting (spaces, dashes, parentheses)
+    const phoneRegex = /^\+?[\d\s\-\(\)]{10,20}$/;
 
     for (let i = 0; i < jsonData.length; i++) {
       const row = jsonData[i];
