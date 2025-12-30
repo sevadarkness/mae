@@ -311,6 +311,7 @@ class PopupController {
 
         // Buttons
         this.btnLoadGroups = document.getElementById('btnLoadGroups');
+        this.btnForceRefresh = document.getElementById('btnForceRefresh');
         this.btnBack = document.getElementById('btnBack');
         this.btnExtract = document.getElementById('btnExtract');
         this.btnNewExtraction = document.getElementById('btnNewExtraction');
@@ -362,6 +363,14 @@ class PopupController {
     // ========================================
     bindEventsOptimized() {
         this.btnLoadGroups?.addEventListener('click', () => this.loadGroups());
+        this.btnForceRefresh?.addEventListener('click', async () => {
+            // Clear cache and reload
+            if (window.GroupCache) {
+                await window.GroupCache.clear();
+            }
+            this.btnForceRefresh.style.display = 'none';
+            await this.loadGroups(true);
+        });
         this.btnBack?.addEventListener('click', () => this.goToStep(1));
         this.btnExtract?.addEventListener('click', () => this.startExtraction());
         this.btnNewExtraction?.addEventListener('click', () => this.reset());
@@ -480,11 +489,17 @@ class PopupController {
             this.hideStatus();
             this.selectedGroup = null;
             if (this.btnExtract) this.btnExtract.disabled = true;
+            if (this.btnForceRefresh) this.btnForceRefresh.style.display = 'none';
 
             if (this.virtualList) {
                 this.virtualList.destroy();
                 this.virtualList = null;
             }
+        }
+        
+        if (step === 2) {
+            // Show force refresh button in Groups view
+            if (this.btnForceRefresh) this.btnForceRefresh.style.display = '';
         }
     }
 
@@ -577,20 +592,35 @@ class PopupController {
             this.showStatus('🔍 Carregando lista de grupos...', 20);
 
             const includeArchived = true; // Sempre incluir todos os grupos
-            const cacheKey = `groups_${includeArchived}`;
 
-            if (!forceRefresh && this.groupsCache && this.groupsCache.has(cacheKey)) {
-                const cached = this.groupsCache.get(cacheKey);
-                this.groups = cached.groups;
-                this.stats = cached.stats;
-                console.log('[SidePanel] ✅ Grupos do cache:', this.stats);
+            // Try to get from GroupCache first (if not forcing refresh)
+            if (!forceRefresh && window.GroupCache) {
+                const cache = await window.GroupCache.get();
+                if (cache && cache.fromCache) {
+                    this.groups = cache.groups;
+                    this.stats = cache.stats;
+                    console.log('[SidePanel] ✅ Grupos do cache (GroupCache):', this.stats);
+                    
+                    // Show cache indicator
+                    const groupCountEl = document.getElementById('groupCount');
+                    if (groupCountEl) {
+                        groupCountEl.textContent = `${this.groups.length} grupo${this.groups.length !== 1 ? 's' : ''} (do cache)`;
+                        groupCountEl.style.opacity = '0.8';
+                    }
 
-                this.updateStats();
-                this.setFilter('all');
-                this.goToStep(2);
-                this.setLoading(this.btnLoadGroups, false);
-                this.hideStatus();
-                return;
+                    this.updateStats();
+                    this.setFilter('all');
+                    this.goToStep(2);
+                    this.setLoading(this.btnLoadGroups, false);
+                    this.hideStatus();
+                    return;
+                }
+            }
+
+            // Clear cache indicator
+            const groupCountEl = document.getElementById('groupCount');
+            if (groupCountEl) {
+                groupCountEl.style.opacity = '1';
             }
 
             // NOVO: Verificar conexão antes de prosseguir
@@ -634,11 +664,9 @@ class PopupController {
                     active: this.groups.filter(g => !g.isArchived).length
                 };
 
-                if (this.groupsCache) {
-                    this.groupsCache.set(cacheKey, { 
-                        groups: this.groups, 
-                        stats: this.stats 
-                    });
+                // Save to GroupCache
+                if (window.GroupCache) {
+                    await window.GroupCache.set(this.groups, this.stats);
                 }
 
                 if (this.performanceMonitor) {

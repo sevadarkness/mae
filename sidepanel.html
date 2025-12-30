@@ -44,6 +44,12 @@
       <button id="sp_select_csv" class="sp-btn sp-btn-secondary" style="flex:1">📊 Importar CSV</button>
       <button id="sp_clear_csv" class="sp-btn sp-btn-danger" style="display:none">🗑️ Remover</button>
     </div>
+    
+    <div class="sp-row" style="margin-top:8px;align-items:center">
+      <input id="sp_excel_file" type="file" accept=".xlsx,.xls" style="display:none" />
+      <button id="sp_import_excel" class="sp-btn sp-btn-secondary" style="flex:1">📊 Importar Excel</button>
+    </div>
+    
     <div id="sp_csv_hint" class="sp-status"></div>
 
     <label class="sp-label" style="margin-top:10px">💬 Mensagem</label>
@@ -237,6 +243,11 @@
             <button id="btnLoadGroups" class="btn btn-primary btn-large">
                 <span class="btn-icon">📂</span>
                 Carregar Grupos
+            </button>
+            
+            <button id="btnForceRefresh" class="btn btn-secondary" style="margin-top:8px;display:none">
+                <span class="btn-icon">🔄</span>
+                Forçar Atualização
             </button>
 
             <!-- Atalhos -->
@@ -491,6 +502,66 @@
   </div>
 
   <div class="sp-card">
+    <div class="sp-title">📅 Agendamentos</div>
+    <div class="sp-muted">Agende múltiplas campanhas para horários diferentes.</div>
+    
+    <div class="sp-row" style="margin-top:10px">
+      <input id="sp_schedule_name" class="sp-input" placeholder="Nome da campanha" style="flex:2">
+      <input id="sp_schedule_time" type="datetime-local" class="sp-input" style="flex:2">
+      <button id="sp_add_schedule" class="sp-btn sp-btn-primary" style="white-space:nowrap">➕ Agendar</button>
+    </div>
+    
+    <div id="sp_schedules_list" class="sp-queue-container" style="margin-top:8px;max-height:250px"></div>
+    <div id="sp_schedule_status" class="sp-status"></div>
+  </div>
+
+  <div class="sp-card">
+    <div class="sp-title">🛡️ Anti-Ban Inteligente</div>
+    <div class="sp-muted">Proteção contra bloqueios com delays inteligentes e limite diário.</div>
+    
+    <label class="sp-label">Limite diário de mensagens</label>
+    <input id="sp_daily_limit" type="number" class="sp-input" value="200" min="1" max="1000">
+    
+    <div class="sp-row" style="margin-top:8px">
+      <span class="sp-muted">Enviadas hoje: <b id="sp_sent_today">0</b> / <b id="sp_daily_limit_display">200</b></span>
+    </div>
+    
+    <div id="sp_daily_progress" style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;margin-top:8px">
+      <div id="sp_daily_progress_fill" style="height:100%;width:0%;background:#25D366;border-radius:4px;transition:width 0.3s"></div>
+    </div>
+    
+    <label class="sp-checkbox" style="margin-top:10px">
+      <input type="checkbox" id="sp_business_hours_only">
+      <span>Enviar apenas em horário comercial (8h-20h)</span>
+    </label>
+    
+    <div class="sp-row" style="margin-top:10px">
+      <button id="sp_save_antiban" class="sp-btn sp-btn-primary">💾 Salvar</button>
+      <button id="sp_reset_daily_count" class="sp-btn sp-btn-secondary">🔄 Resetar contador</button>
+    </div>
+    
+    <div id="sp_antiban_status" class="sp-status"></div>
+  </div>
+
+  <div class="sp-card">
+    <div class="sp-title">🔔 Notificações</div>
+    <div class="sp-muted">Alertas desktop para eventos importantes.</div>
+    
+    <label class="sp-checkbox">
+      <input type="checkbox" id="sp_enable_notifications" checked>
+      <span>Ativar notificações desktop</span>
+    </label>
+    
+    <label class="sp-checkbox">
+      <input type="checkbox" id="sp_enable_sounds" checked>
+      <span>Ativar sons</span>
+    </label>
+    
+    <button id="sp_test_notification" class="sp-btn sp-btn-secondary" style="margin-top:8px">🔔 Testar Notificação</button>
+    <div id="sp_notification_status" class="sp-status"></div>
+  </div>
+
+  <div class="sp-card">
     <div class="sp-title">💾 Rascunhos</div>
     <div class="sp-muted">Salva e restaura fila, mensagem, imagem e contatos extraídos.</div>
 
@@ -578,10 +649,25 @@
     <!-- ========================================
          SCRIPTS - SEM type="module"
     ======================================== -->
+    <!-- SheetJS for Excel import - Using CDN with integrity check -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js" 
+            integrity="sha384-PwMb8JZs4L3f8BcbjQzYR7gq/r/rqcCd2rQ6/qzBkGlwNjJYyZDxLmN6qVeV4KbC"
+            crossorigin="anonymous"></script>
+    
+    <!-- Utilities -->
     <script src="utils/utils-optimized.js"></script>
     <script src="utils/storage.js"></script>
     <script src="utils/google-sheets-export.js"></script>
     <script src="utils/templates.js"></script>
+    
+    <!-- New advanced utilities -->
+    <script src="utils/scheduler.js"></script>
+    <script src="utils/anti-ban.js"></script>
+    <script src="utils/contact-importer.js"></script>
+    <script src="utils/group-cache.js"></script>
+    <script src="utils/notifications.js"></script>
+    
+    <!-- Core scripts -->
     <script src="onboarding.js"></script>
     <script src="sidepanel.js"></script>
     <script src="sidepanel-router.js"></script>
