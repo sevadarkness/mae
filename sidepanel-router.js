@@ -1221,6 +1221,18 @@
     $('sp_save_settings')?.addEventListener('click', configSave);
     $('sp_reload_settings')?.addEventListener('click', configLoad);
 
+    // Anti-Ban
+    $('sp_save_antiban')?.addEventListener('click', saveAntiBanSettings);
+    $('sp_reset_antiban')?.addEventListener('click', resetAntiBan);
+
+    // Scheduler
+    $('sp_schedule_campaign')?.addEventListener('click', scheduleCampaign);
+
+    // Notifications
+    $('sp_save_notifications')?.addEventListener('click', saveNotificationSettings);
+    $('sp_test_notification')?.addEventListener('click', testNotification);
+
+    // Drafts
     $('sp_save_draft')?.addEventListener('click', async () => {
       const name = ($('sp_draft_name')?.value || '').trim();
       if (!name) {
@@ -1246,6 +1258,15 @@
     
     // Load templates list when config view opens
     loadTemplatesList();
+    
+    // Load Anti-Ban stats
+    loadAntiBanStats();
+    
+    // Load schedules list
+    loadSchedulesList();
+    
+    // Load notification settings
+    loadNotificationSettings();
   }
 
   async function configLoad() {
@@ -1537,6 +1558,320 @@
       console.error('[WHL] Erro ao carregar lista de templates:', e);
     }
   }
+
+  // ========= Anti-Ban System =========
+  async function loadAntiBanStats() {
+    if (!window.antiBanSystem) return;
+
+    try {
+      const stats = window.antiBanSystem.getStats();
+      
+      // Update UI
+      $('sp_antiban_limit').value = stats.dailyLimit;
+      $('sp_antiban_business_hours').checked = stats.businessHoursOnly;
+      $('sp_antiban_enabled').checked = stats.enabled;
+      
+      // Update progress bar
+      $('sp_antiban_progress_text').textContent = `${stats.messagesSentToday}/${stats.dailyLimit} (${stats.percentage}%)`;
+      $('sp_antiban_progress_bar').style.width = `${stats.percentage}%`;
+      
+      // Change bar color based on percentage
+      const bar = $('sp_antiban_progress_bar');
+      if (stats.percentage >= 90) {
+        bar.style.background = 'rgba(231, 76, 60, 0.85)'; // Red
+      } else if (stats.percentage >= 70) {
+        bar.style.background = 'rgba(243, 156, 18, 0.85)'; // Orange
+      } else {
+        bar.style.background = 'rgba(37, 211, 102, 0.85)'; // Green
+      }
+    } catch (e) {
+      console.error('[WHL] Erro ao carregar stats anti-ban:', e);
+    }
+  }
+
+  async function saveAntiBanSettings() {
+    const status = $('sp_antiban_status');
+    if (status) status.textContent = '⏳ Salvando...';
+
+    try {
+      const limit = parseInt($('sp_antiban_limit')?.value || '200', 10);
+      const businessHours = $('sp_antiban_business_hours')?.checked || false;
+      const enabled = $('sp_antiban_enabled')?.checked || false;
+
+      if (limit < 1 || limit > 1000) {
+        if (status) status.textContent = '⚠️ Limite deve ser entre 1 e 1000';
+        return;
+      }
+
+      await window.antiBanSystem.updateSettings({
+        dailyLimit: limit,
+        businessHoursOnly: businessHours,
+        enabled: enabled
+      });
+
+      if (status) status.textContent = '✅ Configurações salvas!';
+      await loadAntiBanStats();
+
+      setTimeout(() => {
+        if (status) status.textContent = '';
+      }, 3000);
+    } catch (e) {
+      if (status) status.textContent = `❌ ${e.message || e}`;
+    }
+  }
+
+  async function resetAntiBan() {
+    if (!confirm('Resetar o contador de mensagens do dia?')) return;
+
+    const status = $('sp_antiban_status');
+    if (status) status.textContent = '⏳ Resetando...';
+
+    try {
+      await window.antiBanSystem.resetCounters();
+      if (status) status.textContent = '✅ Contador resetado!';
+      await loadAntiBanStats();
+
+      setTimeout(() => {
+        if (status) status.textContent = '';
+      }, 3000);
+    } catch (e) {
+      if (status) status.textContent = `❌ ${e.message || e}`;
+    }
+  }
+
+  // ========= Scheduler System =========
+  async function scheduleCampaign() {
+    const status = $('sp_schedule_status');
+    if (status) status.textContent = '⏳ Agendando...';
+
+    try {
+      // Get current campaign state
+      const resp = await motor('GET_STATE', { light: false });
+      const st = resp?.state || resp;
+
+      if (!st || !st.queue || st.queue.length === 0) {
+        if (status) status.textContent = '⚠️ Nenhuma campanha para agendar. Gere a fila primeiro.';
+        return;
+      }
+
+      // Prompt for schedule time
+      const dateTimeStr = prompt('Data e hora do agendamento (AAAA-MM-DD HH:MM):', '');
+      if (!dateTimeStr) return;
+
+      // Parse date
+      const scheduledTime = new Date(dateTimeStr.replace(' ', 'T'));
+      if (isNaN(scheduledTime.getTime())) {
+        if (status) status.textContent = '❌ Formato de data inválido. Use: AAAA-MM-DD HH:MM';
+        return;
+      }
+
+      if (scheduledTime <= new Date()) {
+        if (status) status.textContent = '❌ A data deve ser no futuro.';
+        return;
+      }
+
+      // Create campaign object
+      const campaign = {
+        queue: st.queue,
+        config: {
+          message: st.message,
+          imageData: st.imageData,
+          delayMin: (st.delayMin || 3) * 1000,
+          delayMax: (st.delayMax || 8) * 1000
+        }
+      };
+
+      // Schedule
+      const result = await window.schedulerManager.scheduleCampaign(campaign, scheduledTime);
+
+      if (result.success) {
+        if (status) status.textContent = `✅ Campanha agendada para ${scheduledTime.toLocaleString()}!`;
+        
+        // Show notification
+        if (window.notificationSystem) {
+          await window.notificationSystem.notifyScheduled(result.schedule);
+        }
+
+        await loadSchedulesList();
+        
+        setTimeout(() => {
+          if (status) status.textContent = '';
+        }, 5000);
+      } else {
+        if (status) status.textContent = `❌ ${result.error}`;
+      }
+    } catch (e) {
+      if (status) status.textContent = `❌ ${e.message || e}`;
+    }
+  }
+
+  async function loadSchedulesList() {
+    if (!window.schedulerManager) return;
+
+    try {
+      const schedules = window.schedulerManager.getSchedules();
+      const tbody = $('sp_schedules_body');
+      if (!tbody) return;
+
+      if (schedules.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="opacity:.75">Nenhum agendamento</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = schedules.map(s => {
+        const time = new Date(s.scheduledTime).toLocaleString();
+        const statusText = s.status === 'pending' ? '⏳ Pendente' : 
+                          s.status === 'executing' ? '▶️ Executando' :
+                          s.status === 'executed' ? '✅ Executado' : '❌ Falhou';
+        
+        return `
+          <tr>
+            <td>${escapeHtml(time)}</td>
+            <td>${s.contactCount}</td>
+            <td><span class="sp-pill">${statusText}</span></td>
+            <td>
+              <button class="sp-btn sp-btn-danger" data-remove-schedule="${s.id}" style="padding:6px 8px">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Add event listeners for remove buttons
+      tbody.querySelectorAll('[data-remove-schedule]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const scheduleId = btn.getAttribute('data-remove-schedule');
+          if (!confirm('Remover este agendamento?')) return;
+
+          const status = $('sp_schedule_status');
+          if (status) status.textContent = '⏳ Removendo...';
+
+          try {
+            await window.schedulerManager.removeSchedule(scheduleId);
+            if (status) status.textContent = '✅ Agendamento removido!';
+            await loadSchedulesList();
+
+            setTimeout(() => {
+              if (status) status.textContent = '';
+            }, 3000);
+          } catch (e) {
+            if (status) status.textContent = `❌ ${e.message || e}`;
+          }
+        });
+      });
+    } catch (e) {
+      console.error('[WHL] Erro ao carregar agendamentos:', e);
+    }
+  }
+
+  // ========= Notifications System =========
+  async function loadNotificationSettings() {
+    if (!window.notificationSystem) return;
+
+    try {
+      const settings = window.notificationSystem.getSettings();
+      $('sp_notifications_enabled').checked = settings.enabled;
+      $('sp_notifications_sound').checked = settings.soundEnabled;
+    } catch (e) {
+      console.error('[WHL] Erro ao carregar configurações de notificações:', e);
+    }
+  }
+
+  async function saveNotificationSettings() {
+    const status = $('sp_notifications_status');
+    if (status) status.textContent = '⏳ Salvando...';
+
+    try {
+      const enabled = $('sp_notifications_enabled')?.checked || false;
+      const soundEnabled = $('sp_notifications_sound')?.checked || false;
+
+      await window.notificationSystem.updateSettings({
+        enabled: enabled,
+        soundEnabled: soundEnabled
+      });
+
+      if (status) status.textContent = '✅ Configurações salvas!';
+
+      setTimeout(() => {
+        if (status) status.textContent = '';
+      }, 3000);
+    } catch (e) {
+      if (status) status.textContent = `❌ ${e.message || e}`;
+    }
+  }
+
+  async function testNotification() {
+    const status = $('sp_notifications_status');
+    if (status) status.textContent = '🧪 Testando...';
+
+    try {
+      await window.notificationSystem.test();
+      if (status) status.textContent = '✅ Notificação enviada!';
+
+      setTimeout(() => {
+        if (status) status.textContent = '';
+      }, 3000);
+    } catch (e) {
+      if (status) status.textContent = `❌ ${e.message || e}`;
+    }
+  }
+
+  // ========= Principal - Excel Import =========
+  // Add Excel import handler
+  (function setupExcelImport() {
+    const excelInput = $('sp_excel');
+    const excelBtn = $('sp_select_excel');
+
+    if (excelBtn && excelInput) {
+      excelBtn.addEventListener('click', () => excelInput.click());
+    }
+
+    if (excelInput) {
+      excelInput.addEventListener('change', async () => {
+        const file = excelInput.files?.[0];
+        if (!file) return;
+
+        try {
+          $('sp_csv_hint').textContent = `📊 Processando: ${file.name} ...`;
+
+          // Process Excel file
+          const result = await window.contactImporter.processExcelFile(file);
+
+          if (result.success) {
+            // Show preview modal (simple alert for now)
+            const msg = `
+📊 Preview da Importação:
+
+✅ Válidos: ${result.stats.valid}
+🔁 Duplicados: ${result.stats.duplicates}
+❌ Inválidos: ${result.stats.invalid}
+
+Total processado: ${result.stats.total} linhas
+
+Importar os ${result.stats.valid} contatos válidos?
+            `.trim();
+
+            if (confirm(msg)) {
+              // Import valid contacts
+              const phones = result.valid.map(c => c.phone).join('\n');
+              $('sp_numbers').value = phones;
+              $('sp_csv_hint').textContent = `✅ ${result.stats.valid} contatos importados do Excel!`;
+              
+              // Reset input
+              excelInput.value = '';
+            } else {
+              excelInput.value = '';
+              $('sp_csv_hint').textContent = 'Importação cancelada.';
+            }
+          } else {
+            $('sp_csv_hint').textContent = '❌ Erro ao processar Excel';
+          }
+        } catch (e) {
+          $('sp_csv_hint').textContent = `❌ Erro: ${e.message || e}`;
+          excelInput.value = '';
+        }
+      });
+    }
+  })();
 
   // ========= Bootstrap =========
   document.addEventListener('DOMContentLoaded', loadCurrentView);
