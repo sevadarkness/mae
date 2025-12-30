@@ -482,73 +482,6 @@
         $('sp_hint').textContent = `❌ ${e.message || e}`;
       }
     });
-
-    // Template selector
-    $('sp_apply_template')?.addEventListener('click', async () => {
-      const selectEl = $('sp_select_template');
-      const templateId = selectEl?.value;
-      if (!templateId) {
-        $('sp_hint').textContent = '⚠️ Selecione um template.';
-        return;
-      }
-
-      try {
-        const id = parseInt(templateId, 10);
-        const template = window.templateManager.getById(id);
-        if (!template) {
-          $('sp_hint').textContent = '❌ Template não encontrado.';
-          return;
-        }
-
-        // Apply template to message field (without processing variables yet)
-        const msgEl = $('sp_message');
-        if (msgEl) {
-          msgEl.value = template.content;
-          principalUpdatePreview();
-          principalScheduleSync();
-        }
-
-        $('sp_hint').textContent = `✅ Template "${template.name}" aplicado.`;
-      } catch (e) {
-        $('sp_hint').textContent = `❌ ${e.message || e}`;
-      }
-    });
-
-    // Load templates into dropdown
-    loadTemplatesDropdown();
-  }
-
-  async function loadTemplatesDropdown() {
-    try {
-      await window.templateManager.loadTemplates();
-      const templates = window.templateManager.getAllTemplates();
-      const selectEl = $('sp_select_template');
-      if (!selectEl) return;
-
-      // Clear and rebuild options
-      selectEl.innerHTML = '<option value="">📝 Selecionar template...</option>';
-      
-      templates.forEach(t => {
-        const categoryIcon = getCategoryIcon(t.category);
-        const option = document.createElement('option');
-        option.value = t.id;
-        option.textContent = `${categoryIcon} ${t.name}`;
-        selectEl.appendChild(option);
-      });
-    } catch (e) {
-      console.error('[WHL] Erro ao carregar templates dropdown:', e);
-    }
-  }
-
-  function getCategoryIcon(category) {
-    const icons = {
-      vendas: '🛒',
-      suporte: '🎧',
-      marketing: '📢',
-      cobranca: '💰',
-      outros: '📁',
-    };
-    return icons[category] || '📁';
   }
 
   function insertEmoji(emoji) {
@@ -1268,14 +1201,14 @@
     $('sp_save_draft')?.addEventListener('click', async () => {
       const name = ($('sp_draft_name')?.value || '').trim();
       if (!name) {
-        $('sp_config_status').textContent = '⚠️ Informe um nome para o rascunho.';
+        $('sp_config_status').textContent = '⚠️ Informe um nome para o template.';
         return;
       }
-      $('sp_config_status').textContent = '⏳ Salvando rascunho...';
+      $('sp_config_status').textContent = '⏳ Salvando template...';
       try {
         await motor('SAVE_DRAFT', { name });
         $('sp_draft_name').value = '';
-        $('sp_config_status').textContent = '✅ Rascunho salvo.';
+        $('sp_config_status').textContent = '✅ Template salvo.';
         await configLoad();
       } catch (e) {
         $('sp_config_status').textContent = `❌ ${e.message || e}`;
@@ -1285,9 +1218,6 @@
     $('sp_export_report')?.addEventListener('click', exportReportCSV);
     $('sp_copy_failed')?.addEventListener('click', copyFailedNumbers);
 
-    // Template management
-    $('sp_save_template')?.addEventListener('click', saveTemplate);
-    
     // Scheduler management
     $('sp_add_schedule')?.addEventListener('click', addSchedule);
     
@@ -1299,9 +1229,6 @@
     $('sp_enable_notifications')?.addEventListener('change', updateNotificationSettings);
     $('sp_enable_sounds')?.addEventListener('change', updateNotificationSettings);
     $('sp_test_notification')?.addEventListener('click', testNotification);
-    
-    // Load templates list when config view opens
-    loadTemplatesList();
     
     // Load advanced features data
     loadSchedulesList();
@@ -1350,7 +1277,7 @@
 
     const entries = Object.entries(draftsObj || {});
     if (!entries.length) {
-      body.innerHTML = `<tr><td colspan="4" style="opacity:.75">Nenhum rascunho salvo.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="4" style="opacity:.75">Nenhum template salvo.</td></tr>`;
       return;
     }
 
@@ -1381,7 +1308,7 @@
         $('sp_config_status').textContent = `⏳ Carregando "${name}"...`;
         try {
           await motor('LOAD_DRAFT', { name });
-          $('sp_config_status').textContent = '✅ Rascunho carregado.';
+          $('sp_config_status').textContent = '✅ Template carregado.';
           await principalRefresh(true); // atualiza principal se usuário voltar
           await configLoad();
         } catch (e) {
@@ -1394,7 +1321,7 @@
       btn.addEventListener('click', async () => {
         const name = btn.getAttribute('data-del');
         if (!name) return;
-        if (!confirm(`Excluir rascunho "${name}"?`)) return;
+        if (!confirm(`Excluir template "${name}"?`)) return;
         $('sp_config_status').textContent = `⏳ Excluindo "${name}"...`;
         try {
           await motor('DELETE_DRAFT', { name });
@@ -1453,149 +1380,6 @@
       if (hint) hint.textContent = ok ? `✅ Copiado (${failed.length}).` : '⚠️ Nada para copiar.';
     } catch (e) {
       if (hint) hint.textContent = `❌ ${e.message || e}`;
-    }
-  }
-
-  // ========= Templates =========
-  async function saveTemplate() {
-    const nameEl = $('sp_template_name');
-    const categoryEl = $('sp_template_category');
-    const contentEl = $('sp_template_content');
-    const statusEl = $('sp_template_status');
-
-    const name = (nameEl?.value || '').trim();
-    const category = categoryEl?.value || 'outros';
-    const content = (contentEl?.value || '').trim();
-
-    if (!name) {
-      if (statusEl) statusEl.textContent = '⚠️ Informe o nome do template.';
-      return;
-    }
-
-    if (!content) {
-      if (statusEl) statusEl.textContent = '⚠️ Informe o conteúdo do template.';
-      return;
-    }
-
-    if (statusEl) statusEl.textContent = '⏳ Salvando template...';
-
-    try {
-      await window.templateManager.saveTemplate({ name, category, content });
-      
-      // Clear inputs
-      if (nameEl) nameEl.value = '';
-      if (contentEl) contentEl.value = '';
-      if (categoryEl) categoryEl.value = 'vendas';
-
-      if (statusEl) statusEl.textContent = `✅ Template "${name}" salvo com sucesso!`;
-      
-      // Reload templates list and dropdown
-      await loadTemplatesList();
-      await loadTemplatesDropdown();
-
-      // Clear status after 3 seconds
-      setTimeout(() => {
-        if (statusEl) statusEl.textContent = '';
-      }, 3000);
-    } catch (e) {
-      if (statusEl) statusEl.textContent = `❌ ${e.message || e}`;
-    }
-  }
-
-  async function loadTemplatesList() {
-    try {
-      await window.templateManager.loadTemplates();
-      const templates = window.templateManager.getAllTemplates();
-      const listEl = $('sp_templates_list');
-      if (!listEl) return;
-
-      if (templates.length === 0) {
-        listEl.innerHTML = '<div style="padding:16px;text-align:center;opacity:0.7">Nenhum template salvo.</div>';
-        return;
-      }
-
-      // Group by category
-      const byCategory = {};
-      templates.forEach(t => {
-        if (!byCategory[t.category]) byCategory[t.category] = [];
-        byCategory[t.category].push(t);
-      });
-
-      let html = '<table style="width:100%"><thead><tr><th>Nome</th><th style="width:100px">Categoria</th><th style="width:80px">Ações</th></tr></thead><tbody>';
-      
-      Object.keys(byCategory).sort().forEach(category => {
-        byCategory[category].forEach(t => {
-          const icon = getCategoryIcon(t.category);
-          const preview = (t.content || '').substring(0, 50) + (t.content.length > 50 ? '...' : '');
-          
-          html += `
-            <tr>
-              <td>
-                <strong>${escapeHtml(t.name)}</strong>
-                <div style="font-size:11px;opacity:0.7;margin-top:4px">${escapeHtml(preview)}</div>
-              </td>
-              <td style="text-align:center">${icon}</td>
-              <td>
-                <button class="sp-btn sp-btn-secondary" data-edit-template="${t.id}" style="padding:4px 8px;font-size:11px">✏️</button>
-                <button class="sp-btn sp-btn-danger" data-delete-template="${t.id}" style="padding:4px 8px;font-size:11px">🗑️</button>
-              </td>
-            </tr>
-          `;
-        });
-      });
-      
-      html += '</tbody></table>';
-      listEl.innerHTML = html;
-
-      // Add event listeners for delete buttons
-      listEl.querySelectorAll('button[data-delete-template]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = parseInt(btn.getAttribute('data-delete-template'), 10);
-          const template = window.templateManager.getById(id);
-          if (!template) return;
-
-          if (!confirm(`Excluir template "${template.name}"?`)) return;
-
-          const statusEl = $('sp_template_status');
-          if (statusEl) statusEl.textContent = '⏳ Excluindo...';
-
-          try {
-            await window.templateManager.deleteTemplate(id);
-            if (statusEl) statusEl.textContent = `✅ Template "${template.name}" excluído.`;
-            await loadTemplatesList();
-            await loadTemplatesDropdown();
-
-            setTimeout(() => {
-              if (statusEl) statusEl.textContent = '';
-            }, 3000);
-          } catch (e) {
-            if (statusEl) statusEl.textContent = `❌ ${e.message || e}`;
-          }
-        });
-      });
-
-      // Add event listeners for edit buttons
-      listEl.querySelectorAll('button[data-edit-template]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = parseInt(btn.getAttribute('data-edit-template'), 10);
-          const template = window.templateManager.getById(id);
-          if (!template) return;
-
-          const nameEl = $('sp_template_name');
-          const categoryEl = $('sp_template_category');
-          const contentEl = $('sp_template_content');
-
-          if (nameEl) nameEl.value = template.name;
-          if (categoryEl) categoryEl.value = template.category;
-          if (contentEl) contentEl.value = template.content;
-
-          // Scroll to top
-          const configView = $('whlViewConfig');
-          if (configView) configView.scrollTop = 0;
-        });
-      });
-    } catch (e) {
-      console.error('[WHL] Erro ao carregar lista de templates:', e);
     }
   }
 
