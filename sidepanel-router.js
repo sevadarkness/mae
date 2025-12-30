@@ -994,6 +994,7 @@
     } catch (e) {
       $('sp_recover_status').textContent = `❌ ${e.message || e}`;
     }
+  }
 
   async function recoverRefresh(verbose = true) {
     const st = $('sp_recover_status');
