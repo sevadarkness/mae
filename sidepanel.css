@@ -227,10 +227,25 @@ body {
     display: flex;
     gap: 10px;
     margin-top: 10px;
+    flex-wrap: wrap;
 }
 
 .sp-field {
     flex: 1;
+}
+
+.sp-row .sp-btn {
+    flex: 0 1 auto;
+    min-width: fit-content;
+}
+
+.sp-row > .sp-btn {
+    flex-shrink: 0;
+}
+
+.sp-row > .sp-input {
+    flex: 1 1 auto;
+    min-width: 100px;
 }
 
 .sp-btn {
@@ -247,7 +262,10 @@ body {
     justify-content: center;
     gap: 8px;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
+    white-space: nowrap;
+    text-overflow: clip;
+    min-width: fit-content;
 }
 
 .sp-btn::after {
@@ -304,6 +322,8 @@ body {
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(10px);
+    white-space: nowrap;
+    min-width: fit-content;
 }
 
 .sp-btn-secondary:hover {
@@ -374,6 +394,19 @@ body {
     margin-top: 10px;
     font-weight: 700;
     font-size: 12px;
+}
+
+.sp-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    cursor: pointer;
+}
+
+.sp-checkbox span {
+    white-space: normal;
+    word-wrap: break-word;
 }
 
 .container {
@@ -1839,6 +1872,11 @@ body {
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
   backdrop-filter: blur(10px);
+}
+
+.sp-queue-container button {
+    white-space: nowrap;
+    min-width: fit-content;
 }
 .sp-queue-container table{
   width:100%;
