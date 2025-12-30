@@ -699,7 +699,6 @@ body {
 
 /* Dica de reconexão - warning variant */
 .tip-bubble.tip-warning {
-    display: none;
     margin-top: 12px;
     background: rgba(255, 193, 7, 0.15);
     border-color: rgba(255, 193, 7, 0.3);
