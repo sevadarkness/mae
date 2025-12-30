@@ -950,23 +950,50 @@
       }
     });
 
-    $('sp_export_recover')?.addEventListener('click', async () => {
-      try {
-        const resp = await motor('GET_RECOVER_HISTORY');
-        const history = resp?.history || [];
-        const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `recover_history_${Date.now()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        $('sp_recover_status').textContent = `⬇️ Exportado (${history.length})`;
-      } catch (e) {
-        $('sp_recover_status').textContent = `❌ ${e.message || e}`;
-      }
-    });
+    $('sp_download_all_recover')?.addEventListener('click', downloadAllRecover);
   }
+
+  // Função para baixar todos os recovers como CSV
+  async function downloadAllRecover() {
+    try {
+      const resp = await motor('GET_RECOVER_HISTORY');
+      const history = resp?.history || [];
+      
+      if (history.length === 0) {
+        $('sp_recover_status').textContent = '⚠️ Nenhuma mensagem para baixar';
+        return;
+      }
+      
+      // Criar CSV
+      const headers = ['Número', 'Mensagem', 'Tipo', 'Data', 'Hora'];
+      const rows = history.map(h => {
+        const ts = new Date(h?.timestamp || Date.now());
+        const from = normalizeFromId(h?.from || h?.chat || '', h);
+        const body = String(h?.body || h?.message || h?.text || '').replace(/"/g, '""');
+        const type = h?.type === 'deleted' ? 'Apagada' : (h?.type === 'edited' ? 'Editada' : 'Outro');
+        return [
+          `"${from}"`,
+          `"${body}"`,
+          `"${type}"`,
+          `"${ts.toLocaleDateString()}"`,
+          `"${ts.toLocaleTimeString()}"`
+        ].join(',');
+      });
+      
+      const csv = [headers.join(','), ...rows].join('\n');
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mensagens_recuperadas_${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      $('sp_recover_status').textContent = `✅ ${history.length} mensagens exportadas`;
+    } catch (e) {
+      $('sp_recover_status').textContent = `❌ ${e.message || e}`;
+    }
 
   async function recoverRefresh(verbose = true) {
     const st = $('sp_recover_status');
@@ -1045,6 +1072,7 @@
           <div class="card-footer">
             <span class="date">${ts.toLocaleDateString()}</span>
             <button class="copy-btn" data-copy="${encoded}">📋 Copiar</button>
+            <button class="download-btn" data-download="${encoded}" data-from="${escapeHtml(from)}" data-type="${escapeHtml(typeLabel)}">⬇️</button>
           </div>
         </div>
       </div>
@@ -1059,6 +1087,40 @@
       const ok = await copyToClipboard(t);
       btn.textContent = ok ? '✅ Copiado' : '⚠️ Falhou';
       setTimeout(() => btn.textContent = '📋 Copiar', 900);
+    });
+  });
+  
+  // Add event listeners for download buttons
+  root.querySelectorAll('button[data-download]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const enc = btn.getAttribute('data-download') || '';
+      const from = btn.getAttribute('data-from') || 'Desconhecido';
+      const typeLabel = btn.getAttribute('data-type') || 'Outro';
+      const text = decodeURIComponent(enc);
+      
+      // Create CSV for single message
+      const ts = new Date();
+      const headers = ['Número', 'Mensagem', 'Tipo', 'Data', 'Hora'];
+      const row = [
+        `"${from}"`,
+        `"${text.replace(/"/g, '""')}"`,
+        `"${typeLabel}"`,
+        `"${ts.toLocaleDateString()}"`,
+        `"${ts.toLocaleTimeString()}"`
+      ].join(',');
+      
+      const csv = [headers.join(','), row].join('\n');
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mensagem_recuperada_${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      btn.textContent = '✅';
+      setTimeout(() => btn.textContent = '⬇️', 900);
     });
   });
   
