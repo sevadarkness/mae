@@ -80,13 +80,15 @@
       // Se tem entre 10 e 15 dígitos, é provavelmente um número de telefone
       if (digits.length >= 10 && digits.length <= 15) {
         // Formata o número de forma legível
-        if (digits.startsWith('55') && digits.length >= 12) {
-          // Número brasileiro
+        if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+          // Número brasileiro (55 + DDD + 8/9 dígitos)
           const ddd = digits.slice(2, 4);
           const rest = digits.slice(4);
           if (rest.length === 9) {
+            // Celular: 55 + DDD + 9 dígitos
             return `+55 ${ddd} ${rest.slice(0, 5)}-${rest.slice(5)}`;
           } else if (rest.length === 8) {
+            // Fixo: 55 + DDD + 8 dígitos
             return `+55 ${ddd} ${rest.slice(0, 4)}-${rest.slice(4)}`;
           }
         }
