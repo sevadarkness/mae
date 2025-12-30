@@ -4,6 +4,13 @@ console.log('[WA Extractor] Content script v6.0.7 carregado');
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ========================================
+// CONSTANTS
+// ========================================
+const RETRY_TIMEOUT_MS = 15000; // 15 seconds timeout for retry attempts
+const RETRY_ATTEMPTS = 3; // Number of retry attempts for API calls
+const RETRY_DELAY_MS = 500; // Delay between retry attempts
+
+// ========================================
 // INJETA SCRIPT EXTERNO
 // ========================================
 function injectPageScript() {
@@ -42,16 +49,16 @@ function calculateTimeout(estimatedMembers = 100) {
 // ========================================
 // COMUNICAÇÃO COM API INJETADA
 // ========================================
-function callPageAPI(type, data = {}) {
-    // Calculate dynamic timeout based on estimated members
+function callPageAPI(type, data = {}, customTimeout = null) {
+    // Calculate dynamic timeout based on estimated members or use custom timeout
     const estimatedMembers = data.estimatedMembers || 100;
-    const timeoutDuration = calculateTimeout(estimatedMembers);
+    const timeoutDuration = customTimeout || calculateTimeout(estimatedMembers);
     
     return new Promise((resolve) => {
         const timeout = setTimeout(() => {
             window.removeEventListener('message', handler);
             console.log('[WA Extractor] ⏱️ Timeout:', type);
-            resolve({ success: false, error: '⏱️ A conexão está lenta. Verifique sua internet e tente novamente.' });
+            resolve({ success: false, error: '⏱️ Timeout. Tente novamente.' });
         }, timeoutDuration);
 
         function handler(event) {
@@ -198,39 +205,61 @@ async function getGroups(includeArchived = true) {
         console.log('[WA Extractor] Buscando grupos...', { includeArchived });
 
         await injectPageScript();
-        await sleep(500);
+        await sleep(300);
 
-        const apiResult = await callPageAPI('WA_GET_GROUPS', { 
-            includeArchived: includeArchived 
-        });
+        // Tentar até RETRY_ATTEMPTS vezes com timeout de RETRY_TIMEOUT_MS
+        let lastError = null;
+        for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
+            try {
+                console.log(`[WA Extractor] Tentativa ${attempt}/${RETRY_ATTEMPTS} de carregar grupos...`);
+                
+                const apiResult = await callPageAPI('WA_GET_GROUPS', { 
+                    includeArchived: includeArchived 
+                }, RETRY_TIMEOUT_MS);
 
-        if (apiResult && apiResult.success === true && 
-            Array.isArray(apiResult.groups) && apiResult.groups.length > 0) {
-            
-            console.log(`[WA Extractor] ✅ API retornou ${apiResult.groups.length} grupos`);
+                if (apiResult?.success && apiResult?.groups) {
+                    console.log(`[WA Extractor] ✅ Grupos carregados na tentativa ${attempt}:`, apiResult.groups.length);
+                    
+                    const archived = apiResult.groups.filter(g => g.isArchived);
+                    const active = apiResult.groups.filter(g => !g.isArchived);
 
-            const archived = apiResult.groups.filter(g => g.isArchived);
-            const active = apiResult.groups.filter(g => !g.isArchived);
+                    console.log(`[WA Extractor] 📊 ${active.length} ativos, ${archived.length} arquivados`);
 
-            console.log(`[WA Extractor] 📊 ${active.length} ativos, ${archived.length} arquivados`);
-
-            return {
-                success: true,
-                groups: apiResult.groups,
-                stats: apiResult.stats || {
-                    total: apiResult.groups.length,
-                    archived: archived.length,
-                    active: active.length
+                    return {
+                        success: true,
+                        groups: apiResult.groups,
+                        stats: apiResult.stats || {
+                            total: apiResult.groups.length,
+                            archived: archived.length,
+                            active: active.length
+                        }
+                    };
                 }
-            };
+                
+                lastError = apiResult?.error || 'Resposta inválida da API';
+                console.log(`[WA Extractor] Tentativa ${attempt} falhou:`, lastError);
+                
+            } catch (e) {
+                lastError = e.message || String(e);
+                console.log(`[WA Extractor] Tentativa ${attempt} com erro:`, lastError);
+            }
+            
+            // Aguardar antes de tentar novamente (não aguarda após a última tentativa)
+            if (attempt < RETRY_ATTEMPTS) {
+                await sleep(RETRY_DELAY_MS);
+            }
         }
 
-        console.log('[WA Extractor] ⚠️ API não retornou grupos, usando DOM...');
+        // Se todas as tentativas falharam, tentar fallback DOM
+        console.log(`[WA Extractor] ⚠️ API falhou após ${RETRY_ATTEMPTS} tentativas, usando DOM...`);
         return await getGroupsFromDOM(includeArchived);
 
     } catch (error) {
-        console.error('[WA Extractor] Erro:', error);
-        return { success: false, error: error.message };
+        console.error('[WA Extractor] Erro ao buscar grupos:', error);
+        return {
+            success: false,
+            error: error.message || 'Erro ao carregar grupos'
+        };
     }
 }
 
