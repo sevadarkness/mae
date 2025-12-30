@@ -54,14 +54,6 @@
 
     <label class="sp-label" style="margin-top:10px">💬 Mensagem</label>
     
-    <!-- Seletor de Templates -->
-    <div class="sp-row" style="margin-top:8px;align-items:center">
-      <select id="sp_select_template" class="sp-input" style="flex:1">
-        <option value="">📝 Selecionar template...</option>
-      </select>
-      <button id="sp_apply_template" class="sp-btn sp-btn-secondary">Aplicar</button>
-    </div>
-    
     <div style="position:relative">
       <textarea id="sp_message" class="sp-textarea" style="min-height:120px;padding-right:56px" placeholder="Digite a mensagem..."></textarea>
       <button id="sp_emoji_btn" class="sp-btn sp-btn-secondary" style="position:absolute;right:8px;bottom:8px;padding:6px 10px">😊</button>
@@ -482,7 +474,7 @@
             <section id="whlViewConfig" class="whl-view hidden">
   <div class="sp-card">
     <div class="sp-title">⚙️ Configurações</div>
-    <div class="sp-muted">Ajuste delays, agendamento, rascunhos e relatório (igual ao módulo original).</div>
+    <div class="sp-muted">Ajuste delays, agendamento, templates e relatório (igual ao módulo original).</div>
 
     <label class="sp-label">⏱️ Delay mínimo (segundos)</label>
     <input id="sp_delay_min" type="number" class="sp-input" min="0" step="0.5" placeholder="Ex: 2" />
@@ -562,12 +554,16 @@
   </div>
 
   <div class="sp-card">
-    <div class="sp-title">💾 Rascunhos</div>
-    <div class="sp-muted">Salva e restaura fila, mensagem, imagem e contatos extraídos.</div>
+    <div class="sp-title">📝 Templates</div>
+    <div class="sp-muted">Salva e restaura fila, mensagem, imagem e contatos extraídos. Suporte a variáveis dinâmicas.</div>
 
     <div class="sp-row" style="align-items:center">
-      <input id="sp_draft_name" type="text" class="sp-input" placeholder="Nome do rascunho" />
+      <input id="sp_draft_name" type="text" class="sp-input" placeholder="Nome do template" />
       <button id="sp_save_draft" class="sp-btn sp-btn-primary" style="white-space:nowrap">Salvar</button>
+    </div>
+    
+    <div class="sp-muted" style="margin-top:8px;font-size:11px">
+      📌 Variáveis disponíveis: {nome}, {empresa}, {data}, {hora}, {numero}, {saudacao}
     </div>
 
     <div class="sp-queue-container" style="margin-top:8px;max-height:36vh">
@@ -583,40 +579,6 @@
         <tbody id="sp_drafts_body"></tbody>
       </table>
     </div>
-  </div>
-
-  <div class="sp-card">
-    <div class="sp-title">📝 Templates de Mensagens</div>
-    <div class="sp-muted">Crie e gerencie templates reutilizáveis com variáveis dinâmicas.</div>
-    
-    <!-- Criar novo template -->
-    <div class="sp-row" style="margin-top:10px">
-      <input id="sp_template_name" type="text" class="sp-input" placeholder="Nome do template" style="flex:2">
-      <select id="sp_template_category" class="sp-input" style="flex:1">
-        <option value="vendas">🛒 Vendas</option>
-        <option value="suporte">🎧 Suporte</option>
-        <option value="marketing">📢 Marketing</option>
-        <option value="cobranca">💰 Cobrança</option>
-        <option value="outros">📁 Outros</option>
-      </select>
-    </div>
-    
-    <textarea id="sp_template_content" class="sp-textarea" placeholder="Digite o template... Use {nome}, {empresa}, {data}, {hora}, {saudacao}" style="margin-top:8px"></textarea>
-    
-    <div class="sp-row" style="margin-top:8px">
-      <button id="sp_save_template" class="sp-btn sp-btn-primary">💾 Salvar Template</button>
-    </div>
-    
-    <!-- Variáveis disponíveis -->
-    <div class="sp-muted" style="margin-top:8px;font-size:11px">
-      📌 Variáveis: {nome}, {empresa}, {data}, {hora}, {numero}, {saudacao}
-    </div>
-    
-    <!-- Lista de templates -->
-    <div class="sp-title" style="margin-top:15px;font-size:13px">📚 Meus Templates</div>
-    <div id="sp_templates_list" class="sp-queue-container" style="max-height:200px"></div>
-    
-    <div id="sp_template_status" class="sp-status"></div>
   </div>
 
   <div class="sp-card">
