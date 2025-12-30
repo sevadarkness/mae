@@ -635,6 +635,36 @@ class PopupController {
                 return;
             }
 
+            // NOVO: Verificar conexão antes de prosseguir
+            const MAX_CONNECTION_RETRIES = 3;
+            let isConnected = false;
+            
+            for (let attempt = 1; attempt <= MAX_CONNECTION_RETRIES; attempt++) {
+                try {
+                    console.log(`[SidePanel] Verificando conexão (tentativa ${attempt}/${MAX_CONNECTION_RETRIES})...`);
+                    const checkResult = await this.sendMessage('checkPage');
+                    if (checkResult?.success && checkResult?.isWhatsApp) {
+                        isConnected = true;
+                        console.log('[SidePanel] ✅ Conexão OK');
+                        break;
+                    }
+                } catch (e) {
+                    console.log(`[SidePanel] ⚠️ Tentativa ${attempt} falhou:`, e.message);
+                    if (attempt < MAX_CONNECTION_RETRIES) {
+                        await this.delay(800);
+                    }
+                }
+            }
+            
+            if (!isConnected) {
+                // Mostrar dica de reconexão
+                this.showReconnectTip();
+                throw new Error('Conexão perdida. Clique no ícone da extensão para reconectar.');
+            }
+            
+            // Ocultar dica se estava visível
+            this.hideReconnectTip();
+
             const response = await this.sendMessage('getGroups', { 
                 includeArchived: includeArchived 
             });
@@ -663,6 +693,7 @@ class PopupController {
                 this.setFilter('all');
                 this.goToStep(2);
                 this.hideTipBubble();
+                this.hideReconnectTip();
             } else {
                 throw new Error(response?.error || 'Não foi possível carregar os grupos');
             }
@@ -688,6 +719,37 @@ class PopupController {
         if (this.tipBubble) {
             this.tipBubble.classList.remove('hidden');
         }
+    }
+
+    // ========================================
+    // RECONNECT TIP
+    // ========================================
+    showReconnectTip() {
+        let tip = document.getElementById('reconnectTip');
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.id = 'reconnectTip';
+            tip.className = 'tip-bubble tip-warning';
+            tip.innerHTML = `
+                <div class="tip-content">
+                    ⚠️ Conexão perdida. <strong>Clique no ícone da extensão</strong> (🧩) para reconectar.
+                </div>
+            `;
+            // Inserir após o tipBubble existente
+            const tipBubble = document.getElementById('tipBubble');
+            if (tipBubble && tipBubble.parentNode) {
+                tipBubble.parentNode.insertBefore(tip, tipBubble.nextSibling);
+            } else {
+                const step1 = document.getElementById('step1');
+                if (step1) step1.appendChild(tip);
+            }
+        }
+        tip.style.display = 'block';
+    }
+
+    hideReconnectTip() {
+        const tip = document.getElementById('reconnectTip');
+        if (tip) tip.style.display = 'none';
     }
 
     // ========================================
