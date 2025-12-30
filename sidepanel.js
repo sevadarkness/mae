@@ -1515,3 +1515,74 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('[SidePanel] 📊 Progress: Optimized bar with 65% for extraction (30-95%)');
     window.popupController = new PopupController();
 });
+
+// ========================================
+// BUG FIX 3: CONTENT VISIBILITY CONTROL
+// ========================================
+// Listen for messages to hide/show content when tab changes
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'HIDE_CONTENT') {
+        console.log('[SidePanel] 📦 Hiding content (non-WhatsApp tab)');
+        
+        // Hide main content and show message
+        const mainContent = document.querySelector('.app-container');
+        if (mainContent) {
+            mainContent.style.display = 'none';
+        }
+        
+        // Show informational message
+        let infoDiv = document.getElementById('non-whatsapp-message');
+        if (!infoDiv) {
+            infoDiv = document.createElement('div');
+            infoDiv.id = 'non-whatsapp-message';
+            infoDiv.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                padding: 20px;
+                text-align: center;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            `;
+            infoDiv.innerHTML = `
+                <div style="font-size: 64px; margin-bottom: 20px;">📱</div>
+                <h2 style="margin-bottom: 10px;">WhatsApp Web não detectado</h2>
+                <p style="opacity: 0.9; max-width: 400px; line-height: 1.6;">
+                    Navegue até o WhatsApp Web para usar esta extensão.
+                </p>
+                <a href="https://web.whatsapp.com" target="_blank" 
+                   style="margin-top: 20px; padding: 12px 24px; background: white; 
+                          color: #667eea; text-decoration: none; border-radius: 8px; 
+                          font-weight: bold; transition: transform 0.2s;"
+                   onmouseover="this.style.transform='scale(1.05)'"
+                   onmouseout="this.style.transform='scale(1)'">
+                    Abrir WhatsApp Web
+                </a>
+            `;
+            document.body.appendChild(infoDiv);
+        }
+        infoDiv.style.display = 'flex';
+        
+        sendResponse({ success: true });
+    } else if (message.action === 'SHOW_CONTENT') {
+        console.log('[SidePanel] 📱 Showing content (WhatsApp tab)');
+        
+        // Show main content
+        const mainContent = document.querySelector('.app-container');
+        if (mainContent) {
+            mainContent.style.display = '';
+        }
+        
+        // Hide info message
+        const infoDiv = document.getElementById('non-whatsapp-message');
+        if (infoDiv) {
+            infoDiv.style.display = 'none';
+        }
+        
+        sendResponse({ success: true });
+    }
+    
+    return true; // Keep message channel open for async response
+});

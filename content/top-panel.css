@@ -218,6 +218,17 @@ body.wa-extractor-top-panel-visible #app {
     }
 }
 
+@keyframes slideInDown {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
 .wa-extractor-top-panel {
     animation: slideDown 0.4s ease-out;
 }

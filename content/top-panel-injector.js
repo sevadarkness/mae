@@ -230,15 +230,14 @@
                 const view = tab.dataset.view || 'principal';
                 console.log(`[TopPanel] View switched to: ${view}`);
 
-                // BUG FIX 2: User gesture - open Side Panel and set the active view
-                // Ensure side panel is enabled first
+                // BUG FIX 2: Show tooltip to guide user to click extension icon
+                // Chrome doesn't allow programmatic opening of side panel from content scripts
+                showSidePanelGuidance(tab);
+                
+                // Try to open side panel (will work if called from user gesture context)
+                // If this fails, the guidance tooltip will help the user
                 setSidePanelEnabled(true);
-                
-                // Then try to open it with the new view
                 openSidePanel(view);
-                
-                // Log for debugging
-                console.log(`[TopPanel] Sent open side panel message for view: ${view}`);
             });
         });
 
@@ -249,6 +248,46 @@
                 hideTopPanel();
             });
         }
+    }
+    
+    // BUG FIX 2: Show guidance tooltip when user clicks a tab
+    function showSidePanelGuidance(tabElement) {
+        // Remove existing tooltip
+        const existingTooltip = document.querySelector('.side-panel-guidance-tooltip');
+        if (existingTooltip) {
+            existingTooltip.remove();
+        }
+        
+        // Create tooltip
+        const tooltip = document.createElement('div');
+        tooltip.className = 'side-panel-guidance-tooltip';
+        tooltip.innerHTML = `
+            <div style="background: rgba(0, 0, 0, 0.9); color: white; padding: 12px 16px; 
+                        border-radius: 8px; position: fixed; top: 70px; right: 20px; 
+                        z-index: 999999; max-width: 300px; font-size: 13px; 
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.3); animation: slideInDown 0.3s ease;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">👉</span>
+                    <div>
+                        <strong>Dica:</strong> Clique no ícone da extensão 
+                        <span style="background: rgba(255,255,255,0.2); padding: 2px 6px; 
+                                     border-radius: 4px; font-weight: bold;">🔧</span>
+                        para abrir o painel lateral
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(tooltip);
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            if (tooltip.parentNode) {
+                tooltip.style.opacity = '0';
+                tooltip.style.transition = 'opacity 0.3s';
+                setTimeout(() => tooltip.remove(), 300);
+            }
+        }, 5000);
     }
 
     // Listen for custom events from content.js (which receives messages from background)

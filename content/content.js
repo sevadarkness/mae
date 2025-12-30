@@ -3122,6 +3122,9 @@
    */
   // Constants for WhatsApp error detection (multi-language support)
   const WHATSAPP_ERROR_PATTERNS = [
+    'número de telefone compartilhado por url é inválido', // Portuguese - SPECIFIC WhatsApp error
+    'phone number shared via url is invalid',              // English - SPECIFIC WhatsApp error
+    'telefone inválido',                                   // Portuguese - short variant
     'inválido',
     'invalid',
     'não existe',
@@ -3169,6 +3172,14 @@
             );
           };
           
+          // BUG FIX 1 IMPROVED: Check ENTIRE page body for error text
+          const bodyText = (document.body?.innerText || '').toLowerCase();
+          if (containsErrorPattern(bodyText)) {
+            console.error('[WHL] ❌ Número inválido detectado no body da página');
+            resolve({ success: false, error: 'Número inexistente', errorType: 'INVALID_NUMBER' });
+            return;
+          }
+          
           // Verificar texto de erro nos popups
           if (errorPopup) {
             const errorText = errorPopup.textContent || '';
@@ -3192,6 +3203,20 @@
               resolve({ success: false, error: 'Número inexistente', errorType: 'INVALID_NUMBER' });
               return;
             }
+          }
+          
+          // BUG FIX 1: Check for OK button in modal (indicates error)
+          const okButton = document.querySelector('[data-testid="popup-controls-ok"]') ||
+                          document.querySelector('button[data-testid*="ok"]') ||
+                          Array.from(document.querySelectorAll('button')).find(btn => 
+                            (btn.textContent || '').trim().toLowerCase() === 'ok'
+                          );
+          
+          if (okButton && okButton.offsetParent !== null) {
+            // OK button is visible - likely an error modal
+            console.error('[WHL] ❌ Modal de erro detectado (botão OK visível)');
+            resolve({ success: false, error: 'Número inexistente', errorType: 'INVALID_NUMBER' });
+            return;
           }
           
           // Verificar se chat foi aberto corretamente
@@ -3234,12 +3259,30 @@
       };
     }
     
-    // Encontrar input
+    // BUG FIX 1: Pre-send validation - check if there's an input field
+    // If there's no input field, check if there's error text
     const input = document.querySelector('[data-testid="conversation-compose-box-input"]') ||
                   document.querySelector('footer [contenteditable="true"]');
     
     if (!input) {
-      console.error('[WHL] ❌ Input não encontrado!');
+      console.error('[WHL] ❌ Input não encontrado - verificando por mensagens de erro');
+      
+      // Check body for error text
+      const bodyText = (document.body?.innerText || '').toLowerCase();
+      const containsErrorPattern = (text) => {
+        if (!text) return false;
+        const lowerText = text.toLowerCase();
+        return WHATSAPP_ERROR_PATTERNS.some(pattern => 
+          lowerText.includes(pattern.toLowerCase())
+        );
+      };
+      
+      if (containsErrorPattern(bodyText)) {
+        console.error('[WHL] ❌ Texto de erro detectado na página');
+        return { success: false, error: 'Número inexistente', errorType: 'INVALID_NUMBER' };
+      }
+      
+      console.error('[WHL] ❌ Input não encontrado e nenhum erro específico detectado');
       return { success: false, error: 'INPUT_NOT_FOUND' };
     }
     

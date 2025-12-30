@@ -14,6 +14,22 @@ if (typeof chrome === 'undefined' || !chrome.runtime) {
     console.error('[WHL Background] Chrome APIs not available');
 }
 
+// BUG FIX 2: Set side panel to open on action click
+// This allows the side panel to open when user clicks the extension icon
+try {
+  if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
+      .then(() => {
+        console.log('[WHL Background] ✅ Side panel will open on extension icon click');
+      })
+      .catch(e => {
+        console.warn('[WHL Background] setPanelBehavior failed:', e);
+      });
+  }
+} catch (e) {
+  console.warn('[WHL Background] Error setting panel behavior:', e);
+}
+
 // Global error handler
 self.addEventListener('error', (event) => {
     console.error('[WHL Background] Global error:', event.error);
@@ -588,6 +604,9 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     
     if (chrome.sidePanel && chrome.sidePanel.setOptions) {
       if (isWhatsAppWebURL(tab.url)) {
+        // BUG FIX 2: Remove popup on WhatsApp tabs to allow side panel to open on icon click
+        await chrome.action.setPopup({ tabId: activeInfo.tabId, popup: '' });
+        
         // Enable side panel for WhatsApp Web tabs
         await chrome.sidePanel.setOptions({
           tabId: activeInfo.tabId,
@@ -596,12 +615,20 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
         });
         console.log('[WHL Background] Side panel enabled for WhatsApp tab:', activeInfo.tabId);
       } else {
+        // BUG FIX 2: Restore popup for non-WhatsApp tabs
+        await chrome.action.setPopup({ tabId: activeInfo.tabId, popup: 'popup/popup.html' });
+        
         // Disable side panel for non-WhatsApp tabs
         await chrome.sidePanel.setOptions({
           tabId: activeInfo.tabId,
           enabled: false
         });
         console.log('[WHL Background] Side panel disabled for non-WhatsApp tab:', activeInfo.tabId);
+        
+        // BUG FIX 3: Send message to side panel to hide content
+        chrome.runtime.sendMessage({ action: 'HIDE_CONTENT' }).catch(() => {
+          // Side panel may not be open, ignore error
+        });
       }
     }
   } catch (e) {
@@ -616,6 +643,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     try {
       if (chrome.sidePanel && chrome.sidePanel.setOptions) {
         if (isWhatsAppWebURL(changeInfo.url)) {
+          // BUG FIX 2: Remove popup on WhatsApp tabs to allow side panel to open on icon click
+          await chrome.action.setPopup({ tabId: tabId, popup: '' });
+          
           // Enable side panel for WhatsApp Web
           await chrome.sidePanel.setOptions({
             tabId: tabId,
@@ -623,13 +653,26 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
             path: 'sidepanel.html'
           });
           console.log('[WHL Background] Side panel enabled after navigation to WhatsApp:', tabId);
+          
+          // BUG FIX 3: Send message to side panel to show content
+          chrome.runtime.sendMessage({ action: 'SHOW_CONTENT' }).catch(() => {
+            // Side panel may not be open, ignore error
+          });
         } else {
+          // BUG FIX 2: Restore popup when leaving WhatsApp Web
+          await chrome.action.setPopup({ tabId: tabId, popup: 'popup/popup.html' });
+          
           // Disable side panel when leaving WhatsApp Web
           await chrome.sidePanel.setOptions({
             tabId: tabId,
             enabled: false
           });
           console.log('[WHL Background] Side panel disabled after navigation away from WhatsApp:', tabId);
+          
+          // BUG FIX 3: Send message to side panel to hide content
+          chrome.runtime.sendMessage({ action: 'HIDE_CONTENT' }).catch(() => {
+            // Side panel may not be open, ignore error
+          });
         }
       }
     } catch (e) {
