@@ -20,6 +20,13 @@ class PopupController {
             FINISHING: 100      // 95-100%
         };
 
+        // Constantes de conexão
+        this.CONNECTION = {
+            MAX_RETRIES: 3,           // Número de tentativas para verificar conexão
+            RETRY_DELAY_MS: 800,      // Delay entre tentativas (ms)
+            ERROR_MESSAGE: 'Conexão perdida. Clique no ícone da extensão para reconectar.'
+        };
+
         // Estado de extração
         this.extractionState = {
             isRunning: false,
@@ -636,12 +643,11 @@ class PopupController {
             }
 
             // NOVO: Verificar conexão antes de prosseguir
-            const MAX_CONNECTION_RETRIES = 3;
             let isConnected = false;
             
-            for (let attempt = 1; attempt <= MAX_CONNECTION_RETRIES; attempt++) {
+            for (let attempt = 1; attempt <= this.CONNECTION.MAX_RETRIES; attempt++) {
                 try {
-                    console.log(`[SidePanel] Verificando conexão (tentativa ${attempt}/${MAX_CONNECTION_RETRIES})...`);
+                    console.log(`[SidePanel] Verificando conexão (tentativa ${attempt}/${this.CONNECTION.MAX_RETRIES})...`);
                     const checkResult = await this.sendMessage('checkPage');
                     if (checkResult?.success && checkResult?.isWhatsApp) {
                         isConnected = true;
@@ -650,8 +656,8 @@ class PopupController {
                     }
                 } catch (e) {
                     console.log(`[SidePanel] ⚠️ Tentativa ${attempt} falhou:`, e.message);
-                    if (attempt < MAX_CONNECTION_RETRIES) {
-                        await this.delay(800);
+                    if (attempt < this.CONNECTION.MAX_RETRIES) {
+                        await this.delay(this.CONNECTION.RETRY_DELAY_MS);
                     }
                 }
             }
@@ -659,7 +665,7 @@ class PopupController {
             if (!isConnected) {
                 // Mostrar dica de reconexão
                 this.showReconnectTip();
-                throw new Error('Conexão perdida. Clique no ícone da extensão para reconectar.');
+                throw new Error(this.CONNECTION.ERROR_MESSAGE);
             }
             
             // Ocultar dica se estava visível
