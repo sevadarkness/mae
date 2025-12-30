@@ -353,6 +353,9 @@ window.whl_hooks_main = () => {
             if (!src) continue;
             let s = String(src).trim();
             
+            // Skip LID sources entirely (before removing suffixes)
+            if (s.includes('@lid')) continue;
+            
             // Remove TODOS os sufixos do WhatsApp usando regex constante
             s = s.replace(WHATSAPP_SUFFIXES_REGEX, '');
             
@@ -366,12 +369,17 @@ window.whl_hooks_main = () => {
         }
         
         // Fallback: retorna o que tiver, limpo
-        let fallback = message?.author?._serialized || 
-                       message?.from?._serialized || 
-                       message?.id?.remote?._serialized || 
-                       message?.from?.user || '';
+        let fallbackSrc = message?.author?._serialized || 
+                          message?.from?._serialized || 
+                          message?.id?.remote?._serialized || 
+                          message?.from?.user || '';
         
-        fallback = String(fallback).replace(WHATSAPP_SUFFIXES_REGEX, '');
+        // Skip fallback if it's a LID
+        if (String(fallbackSrc).includes('@lid')) {
+            return 'Desconhecido';
+        }
+        
+        let fallback = String(fallbackSrc).replace(WHATSAPP_SUFFIXES_REGEX, '');
         
         return fallback || 'Desconhecido';
     }
