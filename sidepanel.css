@@ -709,6 +709,19 @@ body {
     color: #fff;
 }
 
+/* Dica de reconexão - info variant (sempre visível) */
+.tip-bubble.tip-info {
+    margin-top: 8px;
+    background: rgba(100, 100, 255, 0.1);
+    border-color: rgba(100, 100, 255, 0.3);
+    color: #aaa;
+    font-size: 12px;
+}
+
+.tip-bubble.tip-info strong {
+    color: #fff;
+}
+
 /* ========================================
    OPÇÕES DE CARREGAMENTO
 ======================================== */
