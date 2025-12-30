@@ -311,6 +311,7 @@ class PopupController {
 
         // Buttons
         this.btnLoadGroups = document.getElementById('btnLoadGroups');
+        this.btnForceRefresh = document.getElementById('btnForceRefresh');
         this.btnBack = document.getElementById('btnBack');
         this.btnExtract = document.getElementById('btnExtract');
         this.btnNewExtraction = document.getElementById('btnNewExtraction');
@@ -362,6 +363,7 @@ class PopupController {
     // ========================================
     bindEventsOptimized() {
         this.btnLoadGroups?.addEventListener('click', () => this.loadGroups());
+        this.btnForceRefresh?.addEventListener('click', () => this.loadGroups(true));
         this.btnBack?.addEventListener('click', () => this.goToStep(1));
         this.btnExtract?.addEventListener('click', () => this.startExtraction());
         this.btnNewExtraction?.addEventListener('click', () => this.reset());
@@ -577,20 +579,29 @@ class PopupController {
             this.showStatus('🔍 Carregando lista de grupos...', 20);
 
             const includeArchived = true; // Sempre incluir todos os grupos
-            const cacheKey = `groups_${includeArchived}`;
 
-            if (!forceRefresh && this.groupsCache && this.groupsCache.has(cacheKey)) {
-                const cached = this.groupsCache.get(cacheKey);
-                this.groups = cached.groups;
-                this.stats = cached.stats;
-                console.log('[SidePanel] ✅ Grupos do cache:', this.stats);
+            // Tentar usar cache se não for refresh forçado
+            if (!forceRefresh && window.groupCache) {
+                const cached = await window.groupCache.get();
+                if (cached && cached.groups) {
+                    this.groups = cached.groups;
+                    this.stats = cached.stats || this.calculateStats(cached.groups);
+                    console.log('[SidePanel] ✅ Grupos do cache:', this.stats, '(idade:', cached.ageSeconds, 's)');
 
-                this.updateStats();
-                this.setFilter('all');
-                this.goToStep(2);
-                this.setLoading(this.btnLoadGroups, false);
-                this.hideStatus();
-                return;
+                    // Mostrar indicador de cache
+                    const cacheInfo = await window.groupCache.getInfo();
+                    const remaining = await window.groupCache.getTimeRemaining();
+                    this.showStatus(`📦 Grupos do cache (válido por ${remaining})`, 100);
+                    
+                    setTimeout(() => {
+                        this.updateStats();
+                        this.setFilter('all');
+                        this.goToStep(2);
+                        this.setLoading(this.btnLoadGroups, false);
+                        this.hideStatus();
+                    }, 800);
+                    return;
+                }
             }
 
             // NOVO: Verificar conexão antes de prosseguir
@@ -628,17 +639,11 @@ class PopupController {
 
             if (response?.success && response.groups) {
                 this.groups = response.groups;
-                this.stats = response.stats || {
-                    total: this.groups.length,
-                    archived: this.groups.filter(g => g.isArchived).length,
-                    active: this.groups.filter(g => !g.isArchived).length
-                };
+                this.stats = response.stats || this.calculateStats(response.groups);
 
-                if (this.groupsCache) {
-                    this.groupsCache.set(cacheKey, { 
-                        groups: this.groups, 
-                        stats: this.stats 
-                    });
+                // Salvar no cache
+                if (window.groupCache) {
+                    await window.groupCache.save(this.groups, this.stats);
                 }
 
                 if (this.performanceMonitor) {
@@ -660,6 +665,17 @@ class PopupController {
             this.setLoading(this.btnLoadGroups, false);
             this.hideStatus();
         }
+    }
+
+    /**
+     * Calcula estatísticas dos grupos
+     */
+    calculateStats(groups) {
+        return {
+            total: groups.length,
+            archived: groups.filter(g => g.isArchived).length,
+            active: groups.filter(g => !g.isArchived).length
+        };
     }
 
     // ========================================
