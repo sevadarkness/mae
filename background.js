@@ -8,6 +8,14 @@ try {
   console.warn('[Fusion] Failed to load extractor-v6 background module', e);
 }
 
+// ===== SCHEDULER: Load scheduler utilities =====
+try {
+  importScripts('utils/scheduler.js');
+  console.log('[Background] Loaded scheduler module');
+} catch (e) {
+  console.warn('[Background] Failed to load scheduler module', e);
+}
+
 
 // Verify Chrome APIs are available
 if (typeof chrome === 'undefined' || !chrome.runtime) {
@@ -137,6 +145,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     // Campaign management actions
     START_CAMPAIGN_WORKER: handleStartCampaign,
+    START_SCHEDULED_CAMPAIGN: handleStartScheduledCampaign,
     PAUSE_CAMPAIGN: handlePauseCampaign,
     RESUME_CAMPAIGN: handleResumeCampaign,
     STOP_CAMPAIGN: handleStopCampaign,
@@ -356,6 +365,17 @@ async function handleStartCampaign(message, sender, sendResponse) {
   const { queue, config } = message;
   const result = await startCampaign(queue, config);
   sendResponse(result);
+}
+
+async function handleStartScheduledCampaign(message, sender, sendResponse) {
+  console.log('[Background] Starting scheduled campaign');
+  const { campaign } = message;
+  if (campaign && campaign.queue && campaign.config) {
+    const result = await startCampaign(campaign.queue, campaign.config);
+    sendResponse(result);
+  } else {
+    sendResponse({ success: false, error: 'Invalid campaign data' });
+  }
 }
 
 function handlePauseCampaign(message, sender, sendResponse) {
