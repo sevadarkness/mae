@@ -608,6 +608,13 @@ window.whl_hooks_main = () => {
                 
                 // Aguardar página carregar
                 await new Promise(r => setTimeout(r, 3000));
+                
+                // Verificar se o número é inválido após navegação
+                const bodyText = document.body.innerText || document.body.textContent || '';
+                if (bodyText.includes('O número de telefone compartilhado por url é inválido')) {
+                    console.log('[WHL] ❌ Número inexistente detectado após navegação');
+                    return false;
+                }
             }
             
             return true;
@@ -630,7 +637,7 @@ window.whl_hooks_main = () => {
         const chatAberto = await abrirChatPorNumero(phone);
         if (!chatAberto) {
             console.error('[WHL] ❌ Não foi possível abrir chat para', phone);
-            return { success: false, error: 'CHAT_NOT_OPENED' };
+            return { success: false, error: 'Número inexistente' };
         }
         
         // PASSO 2: Aguardar um pouco mais para garantir

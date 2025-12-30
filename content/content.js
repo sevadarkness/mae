@@ -2953,6 +2953,24 @@
     // Aguardar página carregar completamente (aumentado de 4s para 5s)
     await new Promise(r => setTimeout(r, 5000));
     
+    // Verificar se URL mostra erro de número inválido
+    if (checkForInvalidNumber()) {
+      console.log('[WHL] ❌ Número inválido detectado, pulando');
+      const cur = st.queue[st.index];
+      if (cur) {
+        cur.status = 'failed';
+        cur.errorReason = 'Número inexistente';
+      }
+      st.urlNavigationInProgress = false;
+      st.index++;
+      st.stats.failed++;
+      st.stats.pending--;
+      await setState(st);
+      await render();
+      scheduleCampaignStepViaDom();
+      return;
+    }
+    
     // Verificar se há popup de erro
     const hasError = await checkForErrorPopup();
     if (hasError) {
@@ -3343,6 +3361,19 @@
       .replace(/{{email}}/gi, email);
   }
   
+  /**
+   * Helper function to check for invalid phone number error
+   * Returns true if the current page shows an invalid number error
+   */
+  function checkForInvalidNumber() {
+    const bodyText = document.body.innerText || document.body.textContent || '';
+    if (bodyText.includes('O número de telefone compartilhado por url é inválido')) {
+      console.log('[WHL] ❌ Número inexistente detectado');
+      return true;
+    }
+    return false;
+  }
+
   /**
    * Processa campanha usando API direta (sem reload)
    * Envia mensagens via postMessage para wpp-hooks.js
@@ -3789,29 +3820,41 @@
         } else {
           // Falha - verificar retry
           console.log('[WHL] ❌ Falha ao enviar imagem para número', cur.phone, ':', e.data.error);
-          cur.retries = (cur.retries || 0) + 1;
           
-          if (cur.retries >= (st.retryMax || 0)) {
-            // Máximo de retries atingido
+          // Se é erro de número inexistente, não tentar novamente
+          if (e.data.error === 'Número inexistente') {
             cur.status = 'failed';
-            cur.errorReason = e.data.error || 'Falha no envio de imagem';
+            cur.errorReason = 'Número inexistente';
             cur.retryPending = false;
             st.stats.failed++;
             st.stats.pending--;
             st.index++;
-            
-            // Se não continuar em erros, parar campanha
-            if (!st.continueOnError) {
-              console.log('[WHL] ⚠️ Parando campanha devido a erro');
-              st.isRunning = false;
-              await setState(st);
-              await render();
-              return;
-            }
+            console.log('[WHL] ⚠️ Número inexistente - pulando para próximo');
           } else {
-            // Ainda pode tentar novamente
-            cur.retryPending = true;
-            console.log(`[WHL] 🔄 Tentando novamente (${cur.retries}/${st.retryMax})...`);
+            cur.retries = (cur.retries || 0) + 1;
+            
+            if (cur.retries >= (st.retryMax || 0)) {
+              // Máximo de retries atingido
+              cur.status = 'failed';
+              cur.errorReason = e.data.error || 'Falha no envio de imagem';
+              cur.retryPending = false;
+              st.stats.failed++;
+              st.stats.pending--;
+              st.index++;
+              
+              // Se não continuar em erros, parar campanha
+              if (!st.continueOnError) {
+                console.log('[WHL] ⚠️ Parando campanha devido a erro');
+                st.isRunning = false;
+                await setState(st);
+                await render();
+                return;
+              }
+            } else {
+              // Ainda pode tentar novamente
+              cur.retryPending = true;
+              console.log(`[WHL] 🔄 Tentando novamente (${cur.retries}/${st.retryMax})...`);
+            }
           }
         }
         
