@@ -366,8 +366,7 @@ window.whl_hooks_main = () => {
             const contacts = CC.ContactCollection.getModelsArray() || [];
             const found = contacts.find(c => 
                 c.id.user === cleanLid || 
-                c.id._serialized === cleanLid + '@lid' ||
-                c.id._serialized.includes(cleanLid)
+                c.id._serialized === cleanLid + '@lid'
             );
             
             if (found && found.phoneNumber) {
@@ -445,7 +444,7 @@ window.whl_hooks_main = () => {
             const s = String(src).trim();
             
             // Extrair o ID numérico do LID
-            const lidMatch = s.match(/(\d{10,20})@lid/);
+            const lidMatch = s.match(/(\d{10,15})@lid/);
             if (lidMatch) {
                 const resolved = resolveLidToPhone(lidMatch[1]);
                 if (resolved) {
