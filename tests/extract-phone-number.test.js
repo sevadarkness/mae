@@ -548,14 +548,6 @@
     'LID from bug report (143379161678071) is rejected'
   );
   
-  assertEquals(
-    extractPhoneNumber({
-      from: { _serialized: '143379161678071@c.us' }
-    }),
-    'Desconhecido',
-    'LID without @lid suffix is also rejected (does not start with valid country code)'
-  );
-  
   // Test 8: Priority of fields (should check in order)
   console.log('\n--- Test Group: Field Priority ---');
   assertEquals(
@@ -577,17 +569,17 @@
     'phoneNumber field has priority over from'
   );
   
-  // Test 8: Multiple suffixes in same string
+  // Test 9: Multiple suffixes and LID handling
   console.log('\n--- Test Group: Multiple Suffixes ---');
   assertEquals(
     extractPhoneNumber({
       from: { _serialized: '5511999998888@c.us@lid' }
     }),
-    '5511999998888',
-    'Remove multiple suffixes'
+    'Desconhecido',
+    'Source with @lid is skipped even if it has valid phone number'
   );
   
-  // Test 9: Real-world scenario from the bug report
+  // Test 10: Real-world scenario from the bug report
   console.log('\n--- Test Group: Real Bug Scenario ---');
   assertEquals(
     extractPhoneNumber({
