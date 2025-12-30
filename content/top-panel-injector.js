@@ -76,9 +76,9 @@
         panel.innerHTML = `
             <div class="top-panel-container">
                 <div class="top-panel-left">
-                    <div class="top-panel-logo" title="WhatsHybrid Lite">
-                        <span class="logo-icon">👥</span>
-                        <span class="logo-text">WhatsHybrid Lite</span>
+                    <div class="top-panel-logo" title="WhatsHybrid">
+                        <img src="${chrome.runtime.getURL('icons/48.png')}" alt="WhatsHybrid" class="logo-icon-img" style="width:24px;height:24px;border-radius:4px;">
+                        <span class="logo-text">WhatsHybrid</span>
                     </div>
                 </div>
                 <div class="top-panel-center">
