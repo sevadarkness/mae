@@ -1203,35 +1203,69 @@ window.whl_hooks_main = () => {
     }
     
     /**
-     * Detecta o tipo de mensagem baseado no conteúdo
-     * @param {string} body - O conteúdo da mensagem
-     * @param {string} originalType - O tipo original da mensagem
-     * @returns {string} - O tipo detectado ('image', 'video', 'audio', 'text')
+     * Detects message type based on content
+     * @param {string} body - Message content
+     * @param {string} originalType - Original message type
+     * @returns {string} - Detected type ('image', 'video', 'audio', 'text')
      */
     function detectMessageType(body, originalType) {
         if (!body || typeof body !== 'string') return originalType || 'text';
         
-        // Detectar imagens base64
-        // JPEG começa com /9j/
-        // PNG começa com iVBOR
+        // Detect base64 images
+        // JPEG starts with /9j/
+        // PNG starts with iVBOR
         if (body.startsWith('/9j/') || body.startsWith('iVBOR')) {
             return 'image';
         }
         
-        // Detectar data URLs
+        // Detect data URLs
         if (body.startsWith('data:image')) return 'image';
         if (body.startsWith('data:video')) return 'video';
         if (body.startsWith('data:audio')) return 'audio';
         
-        // Manter tipo original se não for detectado
+        // Keep original type if not detected
         return originalType || 'text';
     }
     
     /**
-     * CORREÇÃO BUG 4: Função para salvar mensagem recuperada
+     * Checks if content is a base64 image
+     * Helper function shared between hooks and UI rendering
+     * @param {string} content - Content to check
+     * @returns {boolean} - True if content is base64 image
      */
+    function isBase64Image(content) {
+        if (!content || typeof content !== 'string') return false;
+        return content.startsWith('/9j/') || 
+               content.startsWith('iVBOR') || 
+               content.startsWith('data:image');
+    }
+    
     /**
-     * CORREÇÃO ISSUE 05: Salvar mensagem editada no histórico
+     * Converts base64 content to data URL
+     * @param {string} content - Base64 content
+     * @returns {string|null} - Data URL or null if not convertible
+     */
+    function toDataUrl(content) {
+        if (!content || typeof content !== 'string') return null;
+        
+        // Already a data URL
+        if (content.startsWith('data:')) return content;
+        
+        // JPEG base64
+        if (content.startsWith('/9j/')) {
+            return `data:image/jpeg;base64,${content}`;
+        }
+        
+        // PNG base64
+        if (content.startsWith('iVBOR')) {
+            return `data:image/png;base64,${content}`;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Bug fix: Save edited message to history
      */
     function salvarMensagemEditada(message) {
         const messageContent = message?.body || message?.caption || '[sem conteúdo]';
@@ -2984,6 +3018,13 @@ window.whl_hooks_main = () => {
             window.postMessage({ type: 'WHL_EXTRACT_INSTANT_ERROR', error: e.message }, window.location.origin);
         }
     });
+    
+    // Expose helper functions for use by sidepanel and other components
+    window.WHL_MessageContentHelpers = {
+        isBase64Image: isBase64Image,
+        toDataUrl: toDataUrl,
+        detectMessageType: detectMessageType
+    };
 };
 
 // Executar apenas uma vez

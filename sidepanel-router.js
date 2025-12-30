@@ -988,8 +988,24 @@
   if (!root) return;
 
   const slice = (history || []).slice(-MAX_RECOVER_RENDER).reverse();
+  
+  // Helper functions for image detection (fallback if not available from wpp-hooks)
+  const isBase64Image = (content) => {
+    if (!content || typeof content !== 'string') return false;
+    return content.startsWith('/9j/') || 
+           content.startsWith('iVBOR') || 
+           content.startsWith('data:image');
+  };
+  
+  const toDataUrl = (content) => {
+    if (!content || typeof content !== 'string') return null;
+    if (content.startsWith('data:')) return content;
+    if (content.startsWith('/9j/')) return `data:image/jpeg;base64,${content}`;
+    if (content.startsWith('iVBOR')) return `data:image/png;base64,${content}`;
+    return null;
+  };
 
-  root.innerHTML = slice.map((h) => {
+  root.innerHTML = slice.map((h, idx) => {
     const type = (h?.type || 'unknown');
     const klass = type === 'deleted' ? 'deleted' : (type === 'edited' ? 'edited' : '');
     const typeLabel = type === 'deleted' ? '🗑️ Apagada' : (type === 'edited' ? '✏️ Editada' : 'ℹ️');
@@ -1001,20 +1017,15 @@
     const raw = String(h?.body || h?.message || h?.text || '');
     const encoded = encodeURIComponent(raw);
     
-    // Detectar se é imagem base64
-    const isBase64Image = raw.startsWith('/9j/') || raw.startsWith('iVBOR') || raw.startsWith('data:image');
-    
     let contentHtml;
-    if (type === 'image' || isBase64Image) {
-      // Determinar o formato
-      let dataUrl = raw;
-      if (raw.startsWith('/9j/')) {
-        dataUrl = `data:image/jpeg;base64,${raw}`;
-      } else if (raw.startsWith('iVBOR')) {
-        dataUrl = `data:image/png;base64,${raw}`;
+    if (type === 'image' || isBase64Image(raw)) {
+      const dataUrl = toDataUrl(raw);
+      if (dataUrl) {
+        // Use data attribute instead of inline onclick for better security
+        contentHtml = `<img src="${escapeHtml(dataUrl)}" alt="Imagem recuperada" class="recover-image" data-image-index="${idx}" style="max-width: 100%; border-radius: 8px; cursor: pointer;" />`;
+      } else {
+        contentHtml = `<p class="original-message"><i>(Imagem inválida)</i></p>`;
       }
-      
-      contentHtml = `<img src="${escapeHtml(dataUrl)}" alt="Imagem recuperada" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="window.open('${escapeHtml(dataUrl)}', '_blank')" />`;
     } else {
       contentHtml = `<p class="original-message">${escapeHtml(raw) || '<i>(vazio)</i>'}</p>`;
     }
@@ -1040,6 +1051,7 @@
     `;
   }).join('');
 
+  // Add event listeners for copy buttons
   root.querySelectorAll('button[data-copy]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const enc = btn.getAttribute('data-copy') || '';
@@ -1047,6 +1059,14 @@
       const ok = await copyToClipboard(t);
       btn.textContent = ok ? '✅ Copiado' : '⚠️ Falhou';
       setTimeout(() => btn.textContent = '📋 Copiar', 900);
+    });
+  });
+  
+  // Add event listeners for images to open in new tab
+  root.querySelectorAll('img.recover-image').forEach(img => {
+    img.addEventListener('click', () => {
+      const src = img.getAttribute('src');
+      if (src) window.open(src, '_blank');
     });
   });
 }
