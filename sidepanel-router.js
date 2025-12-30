@@ -1607,15 +1607,7 @@
     const statusEl = $('sp_notification_status');
     
     try {
-      // Request permission if needed
-      const permission = await window.notificationSystem.requestPermission();
-      
-      if (!permission) {
-        if (statusEl) statusEl.textContent = '⚠️ Permissão de notificações negada.';
-        return;
-      }
-      
-      // Send test notification
+      // Send test notification directly (chrome.notifications doesn't need permission request)
       await window.notificationSystem.test();
       
       if (statusEl) statusEl.textContent = '✅ Notificação enviada!';
