@@ -211,10 +211,7 @@ Provides desktop notifications with sound for important events like campaign com
 **File:** `utils/notifications.js`
 
 ```javascript
-// Request permission
-await window.notificationSystem.requestPermission();
-
-// Send notification
+// Send notification (chrome.notifications doesn't need permission request)
 await window.notificationSystem.notify('Title', 'Body', {
   sound: true,
   soundType: 'success' // or 'error', 'warning', 'default'
