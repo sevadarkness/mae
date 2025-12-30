@@ -4,6 +4,13 @@ console.log('[WA Extractor] Content script v6.0.7 carregado');
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ========================================
+// CONSTANTS
+// ========================================
+const RETRY_TIMEOUT_MS = 15000; // 15 seconds timeout for retry attempts
+const RETRY_ATTEMPTS = 3; // Number of retry attempts for API calls
+const RETRY_DELAY_MS = 500; // Delay between retry attempts
+
+// ========================================
 // INJETA SCRIPT EXTERNO
 // ========================================
 function injectPageScript() {
@@ -200,15 +207,15 @@ async function getGroups(includeArchived = true) {
         await injectPageScript();
         await sleep(300);
 
-        // Tentar até 3 vezes com timeout de 15 segundos
+        // Tentar até RETRY_ATTEMPTS vezes com timeout de RETRY_TIMEOUT_MS
         let lastError = null;
-        for (let attempt = 1; attempt <= 3; attempt++) {
+        for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
             try {
-                console.log(`[WA Extractor] Tentativa ${attempt}/3 de carregar grupos...`);
+                console.log(`[WA Extractor] Tentativa ${attempt}/${RETRY_ATTEMPTS} de carregar grupos...`);
                 
                 const apiResult = await callPageAPI('WA_GET_GROUPS', { 
                     includeArchived: includeArchived 
-                }, 15000); // 15 segundos de timeout
+                }, RETRY_TIMEOUT_MS);
 
                 if (apiResult?.success && apiResult?.groups) {
                     console.log(`[WA Extractor] ✅ Grupos carregados na tentativa ${attempt}:`, apiResult.groups.length);
@@ -238,13 +245,13 @@ async function getGroups(includeArchived = true) {
             }
             
             // Aguardar antes de tentar novamente (não aguarda após a última tentativa)
-            if (attempt < 3) {
-                await sleep(500);
+            if (attempt < RETRY_ATTEMPTS) {
+                await sleep(RETRY_DELAY_MS);
             }
         }
 
         // Se todas as tentativas falharam, tentar fallback DOM
-        console.log('[WA Extractor] ⚠️ API falhou após 3 tentativas, usando DOM...');
+        console.log(`[WA Extractor] ⚠️ API falhou após ${RETRY_ATTEMPTS} tentativas, usando DOM...`);
         return await getGroupsFromDOM(includeArchived);
 
     } catch (error) {
