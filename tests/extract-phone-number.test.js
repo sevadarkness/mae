@@ -265,7 +265,8 @@
     if (!digits || digits.length < 10 || digits.length > 15) return false;
     
     // Verificar se começa com código de país válido
-    // Usa códigos pré-ordenados por comprimento para match mais específico primeiro
+    // Usa códigos pré-ordenados (longest first) para evitar falsos positivos
+    // Ex: '212' deve ser testado antes de '1' para números do Marrocos
     for (const code of SORTED_COUNTRY_CODES) {
       if (digits.startsWith(code)) {
         return true;

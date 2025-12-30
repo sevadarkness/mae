@@ -295,7 +295,7 @@ window.whl_hooks_main = () => {
     /**
      * PR #76 ULTRA: Validação de telefone melhorada
      * Validação básica usada em outras partes do sistema
-     * Verifica comprimento e presença de caracteres especiais LID
+     * Verifica comprimento e rejeita números contendo ':' ou '@lid'
      * @param {string} num - Número a ser validado
      * @returns {boolean} - true se válido, false caso contrário
      */
@@ -303,7 +303,7 @@ window.whl_hooks_main = () => {
         if (!num) return false;
         const clean = String(num).replace(/\D/g, '');
         
-        // Rejeitar LIDs
+        // Rejeitar LIDs (contêm ':' ou '@lid')
         if (String(num).includes(':') || String(num).includes('@lid')) {
             return false;
         }
@@ -323,7 +323,8 @@ window.whl_hooks_main = () => {
         if (!digits || digits.length < 10 || digits.length > 15) return false;
         
         // Verificar se começa com código de país válido
-        // Usa códigos pré-ordenados por comprimento para match mais específico primeiro
+        // Usa códigos pré-ordenados (longest first) para evitar falsos positivos
+        // Ex: '212' deve ser testado antes de '1' para números do Marrocos
         for (const code of SORTED_COUNTRY_CODES) {
             if (digits.startsWith(code)) {
                 return true;
