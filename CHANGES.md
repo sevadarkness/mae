@@ -1,5 +1,54 @@
 # WhatsApp Group Member Extractor - Changes
 
+## v6.0.10 (Em Desenvolvimento)
+
+### 🐛 Bug Fix: Recover mostra LID em vez do número de telefone
+
+#### Problema
+O PR #6 corrigiu a exibição no `sidepanel-router.js`, mas o problema persistia porque os dados estavam sendo salvos incorretamente no `content/wpp-hooks.js`. O campo `from` estava salvando o LID (`270953061822606@lid`) em vez do número de telefone.
+
+#### Log do erro
+```
+wpp-hooks.js:985 [WHL Recover] Mensagem recuperada de 270953061822606@lid: G...
+```
+
+#### Causa
+Em `content/wpp-hooks.js`, nas funções `salvarMensagemRecuperada` e `salvarMensagemEditada`, o código estava apenas removendo sufixos mas não estava extraindo o número de telefone de outros campos do objeto `message`. Além disso, o código não removia `@lid`.
+
+#### Solução Implementada
+
+**1. Nova função helper `extractPhoneNumber` (linha ~100)**
+- Busca o número em 15 campos diferentes do objeto message
+- Remove TODOS os sufixos do WhatsApp incluindo `@lid`
+- Valida se é um número de telefone válido (10-15 dígitos)
+- Retorna o número formatado ou fallback para "Desconhecido"
+
+**2. Atualização da função `salvarMensagemEditada` (linha ~904)**
+- Substituída lógica manual por chamada a `extractPhoneNumber(message)`
+- Código mais limpo e consistente
+
+**3. Atualização da função `salvarMensagemRecuperada` (linha ~960)**
+- Substituída lógica manual por chamada a `extractPhoneNumber(msg)`
+- Melhorada recuperação do cache para também usar `extractPhoneNumber`
+
+**4. Novo arquivo de testes**
+- `tests/extract-phone-number.test.js` com 30+ casos de teste
+- Testa LIDs, múltiplos campos, sufixos, validação, edge cases
+
+#### Critérios de Aceite
+- ✅ O número de telefone é extraído corretamente do objeto message
+- ✅ LIDs como `270953061822606@lid` são tratados e buscam o número em outros campos
+- ✅ O campo `from` no histórico salva o número de telefone (ex: `5511999998888`)
+- ✅ Funciona para mensagens apagadas e editadas
+- ✅ Fallback para "Desconhecido" quando não encontrar número
+- ✅ Testes criados para validar o comportamento
+
+#### Arquivos Modificados
+- `content/wpp-hooks.js` - Adicionada função `extractPhoneNumber` e atualização de `salvarMensagemEditada` e `salvarMensagemRecuperada`
+- `tests/extract-phone-number.test.js` - Novo arquivo com testes completos
+
+---
+
 ## v6.0.9 (Atual)
 
 ### 🎯 Objetivo
