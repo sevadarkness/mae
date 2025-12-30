@@ -14,6 +14,10 @@ window.whl_hooks_main = () => {
         error: (...args) => console.error('[WHL Hooks]', ...args)
     };
     
+    // ===== CONSTANTS =====
+    // WhatsApp ID suffixes pattern for removal
+    const WHATSAPP_SUFFIXES_REGEX = /@c\.us|@s\.whatsapp\.net|@g\.us|@broadcast|@lid/g;
+    
     // ===== HELPER FUNCTIONS FOR GROUP MEMBER EXTRACTION =====
     function safeRequire(name) {
         try {
@@ -89,6 +93,59 @@ window.whl_hooks_main = () => {
         
         // Aceitar apenas números válidos (10-15 dígitos)
         return /^\d{10,15}$/.test(clean);
+    }
+
+    /**
+     * Extrai número de telefone de um objeto de mensagem do WhatsApp
+     * Busca em múltiplos campos e formata corretamente
+     * @param {Object} message - Objeto de mensagem do WhatsApp
+     * @returns {string} - Número de telefone limpo ou "Desconhecido"
+     */
+    function extractPhoneNumber(message) {
+        // Lista de campos onde o número pode estar
+        const sources = [
+            message?.sender,
+            message?.phoneNumber,
+            message?.number,
+            message?.author?._serialized,
+            message?.author?.user,
+            message?.from?._serialized,
+            message?.from?.user,
+            message?.from,
+            message?.chat?.contact?.number,
+            message?.chat?.contact?.id?.user,
+            message?.chat?.id?.user,
+            message?.id?.remote?._serialized,
+            message?.id?.remote?.user,
+            message?.id?.participant?._serialized,
+            message?.id?.participant?.user
+        ];
+        
+        for (const src of sources) {
+            if (!src) continue;
+            let s = String(src).trim();
+            
+            // Remove TODOS os sufixos do WhatsApp usando regex constante
+            s = s.replace(WHATSAPP_SUFFIXES_REGEX, '');
+            
+            // Extrai apenas dígitos
+            const digits = s.replace(/\D/g, '');
+            
+            // Se tem entre 10 e 15 dígitos, é provavelmente um número de telefone
+            if (digits.length >= 10 && digits.length <= 15) {
+                return digits;
+            }
+        }
+        
+        // Fallback: retorna o que tiver, limpo
+        let fallback = message?.author?._serialized || 
+                       message?.from?._serialized || 
+                       message?.id?.remote?._serialized || 
+                       message?.from?.user || '';
+        
+        fallback = String(fallback).replace(WHATSAPP_SUFFIXES_REGEX, '');
+        
+        return fallback || 'Desconhecido';
     }
 
     // PR #76 ULTRA: Resolução de LID ULTRA (7 campos + 5 variações de ID)
@@ -844,11 +901,9 @@ window.whl_hooks_main = () => {
      */
     function salvarMensagemEditada(message) {
         const messageContent = message?.body || message?.caption || '[sem conteúdo]';
-        let from = message?.author?._serialized || message?.from?._serialized || message?.id?.remote?._serialized || message?.from?.user || '';
+        let from = extractPhoneNumber(message);
         
-        // Formatar
-        from = (from || '').replace(/@c\.us|@s\.whatsapp\.net|@g\.us|@broadcast/g, '');
-        if (!from) from = 'Número desconhecido';
+        if (!from || from === 'Desconhecido') from = 'Número desconhecido';
         
         const entrada = {
             id: message.id?.id || Date.now().toString(),
@@ -903,7 +958,7 @@ window.whl_hooks_main = () => {
     function salvarMensagemRecuperada(msg) {
         // CORREÇÃO BUG 4: Tentar múltiplas fontes para o body
         let body = msg.body || msg.caption || msg.text || '';
-        let from = msg.author?._serialized || msg.from?._serialized || msg.id?.remote?._serialized || msg.from?.user || '';
+        let from = extractPhoneNumber(msg);
         
         // Se body estiver vazio, TENTAR RECUPERAR DO CACHE
         if (!body) {
@@ -919,17 +974,19 @@ window.whl_hooks_main = () => {
                 const cached = messageCache.get(id);
                 if (cached && cached.body) {
                     body = cached.body;
-                    if (!from && cached.from) from = cached.from;
+                    // Se from não foi encontrado, tentar recuperar do cache
+                    if ((!from || from === 'Desconhecido') && cached.from) {
+                        from = extractPhoneNumber({ from: { _serialized: cached.from } });
+                    }
                     console.log('[WHL Recover] ✅ Conteúdo recuperado do cache:', body.substring(0, 50));
                     break;
                 }
             }
         }
         
-        // Formatar
-        from = (from || '').replace(/@c\.us|@s\.whatsapp\.net|@g\.us|@broadcast/g, '');
+        // Validar resultados
         if (!body) body = '[Mensagem sem texto - mídia ou sticker]';
-        if (!from) from = 'Número desconhecido';
+        if (!from || from === 'Desconhecido') from = 'Número desconhecido';
         
         const entrada = {
             id: msg.id?.id || Date.now().toString(),
