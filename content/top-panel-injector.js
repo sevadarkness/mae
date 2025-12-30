@@ -30,17 +30,34 @@
     // Helpers for Side Panel
     function setSidePanelEnabled(enabled) {
         try {
-            chrome.runtime.sendMessage({ action: 'WHL_SET_SIDE_PANEL_ENABLED', enabled }).catch(() => {});
+            chrome.runtime.sendMessage({ action: 'WHL_SET_SIDE_PANEL_ENABLED', enabled })
+                .then(() => {
+                    console.log(`[TopPanel] Side panel ${enabled ? 'enabled' : 'disabled'}`);
+                })
+                .catch((err) => {
+                    console.warn('[TopPanel] Failed to set side panel enabled state:', err);
+                });
         } catch (e) {
-            // ignore
+            console.warn('[TopPanel] Error in setSidePanelEnabled:', e);
         }
     }
 
     function openSidePanel(view) {
         try {
-            chrome.runtime.sendMessage({ action: 'WHL_OPEN_SIDE_PANEL_VIEW', view }).catch(() => {});
+            console.log(`[TopPanel] Attempting to open side panel with view: ${view}`);
+            chrome.runtime.sendMessage({ action: 'WHL_OPEN_SIDE_PANEL_VIEW', view })
+                .then((response) => {
+                    if (response && response.success) {
+                        console.log(`[TopPanel] Side panel opened successfully for view: ${view}`);
+                    } else {
+                        console.warn('[TopPanel] Failed to open side panel:', response?.error || 'Unknown error');
+                    }
+                })
+                .catch((err) => {
+                    console.warn('[TopPanel] Error opening side panel:', err);
+                });
         } catch (e) {
-            // ignore
+            console.warn('[TopPanel] Exception in openSidePanel:', e);
         }
     }
 
@@ -213,9 +230,15 @@
                 const view = tab.dataset.view || 'principal';
                 console.log(`[TopPanel] View switched to: ${view}`);
 
-                // User gesture: open Side Panel and set the active view
+                // BUG FIX 2: User gesture - open Side Panel and set the active view
+                // Ensure side panel is enabled first
                 setSidePanelEnabled(true);
+                
+                // Then try to open it with the new view
                 openSidePanel(view);
+                
+                // Log for debugging
+                console.log(`[TopPanel] Sent open side panel message for view: ${view}`);
             });
         });
 
