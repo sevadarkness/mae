@@ -2024,3 +2024,43 @@ body {
   transform: translateY(-1px);
 }
 
+/* ========================================
+   FIX: Botões com texto cortado
+======================================== */
+
+/* Garantir que o texto dos botões não seja cortado */
+.sp-btn {
+    white-space: nowrap;
+    overflow: visible;
+    min-width: fit-content;
+    flex-shrink: 0;
+}
+
+/* Permitir que as linhas de botões quebrem quando necessário */
+.sp-row {
+    flex-wrap: wrap;
+}
+
+/* Botões em linhas não devem encolher */
+.sp-row > .sp-btn {
+    flex: 0 1 auto;
+}
+
+/* Inputs podem encolher, mas têm tamanho mínimo */
+.sp-row > .sp-input,
+.sp-row > select.sp-input {
+    flex: 1 1 120px;
+    min-width: 120px;
+}
+
+/* Botões em tabelas */
+.sp-queue-container .sp-btn {
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+/* Labels de checkbox */
+.sp-checkbox span {
+    white-space: normal;
+}
+
