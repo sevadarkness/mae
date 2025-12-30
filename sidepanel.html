@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Group Extractor v6.0.6 - Side Panel</title>
+    <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+    <div class="container">
+        <!-- ========================================
+             HEADER
+        ======================================== -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">👥</span>
+                <h1 id="spHeaderTitle">WhatsHybrid</h1>
+            </div>
+            <div class="header-actions">
+                <button id="btnViewHistory" class="btn-icon-header" title="Ver Histórico (Ctrl+H)">
+                    📜
+                </button>
+                <span class="version">v6.0.6</span>
+            </div>
+        </header>
+
+        <!-- ========================================
+             WHL FUSION: VIEW ROOT (dynamic content)
+        ======================================== -->
+        <div id="whlViewRoot" class="whl-view-root">
+
+            <!-- ============ VIEW: PRINCIPAL ============ -->
+            <section id="whlViewPrincipal" class="whl-view">
+  <div class="sp-card">
+    <div class="sp-title">📨 Disparo de mensagens — Envio em massa</div>
+    <div class="sp-muted">Cole os números, escreva a mensagem, anexe uma imagem (opcional), gere a tabela e inicie a campanha.</div>
+
+    <label class="sp-label">📱 Números (um por linha)</label>
+    <textarea id="sp_numbers" class="sp-textarea" placeholder="5511999998888&#10;5511988887777"></textarea>
+
+    <div class="sp-row" style="margin-top:8px;align-items:center">
+      <input id="sp_csv" type="file" accept=".csv,text/csv" style="display:none" />
+      <button id="sp_select_csv" class="sp-btn sp-btn-secondary" style="flex:1">📊 Importar CSV</button>
+      <button id="sp_clear_csv" class="sp-btn sp-btn-danger" style="display:none">🗑️ Remover</button>
+    </div>
+    <div id="sp_csv_hint" class="sp-status"></div>
+
+    <label class="sp-label" style="margin-top:10px">💬 Mensagem</label>
+    <div style="position:relative">
+      <textarea id="sp_message" class="sp-textarea" style="min-height:120px;padding-right:56px" placeholder="Digite a mensagem..."></textarea>
+      <button id="sp_emoji_btn" class="sp-btn sp-btn-secondary" style="position:absolute;right:8px;bottom:8px;padding:6px 10px">😊</button>
+      <div id="sp_emoji_picker" style="display:none;position:absolute;right:8px;bottom:50px;z-index:10;background:rgba(0,0,0,0.60);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:8px;max-width:260px"></div>
+    </div>
+
+    <div class="sp-row" style="margin-top:8px;align-items:center">
+      <input id="sp_image" type="file" accept="image/*" style="display:none" />
+      <button id="sp_select_image" class="sp-btn sp-btn-secondary" style="flex:1">📎 Anexar imagem</button>
+      <button id="sp_clear_image" class="sp-btn sp-btn-danger" style="display:none">🗑️ Remover</button>
+    </div>
+    <div id="sp_image_hint" class="sp-status"></div>
+
+    <div class="sp-row" style="margin-top:8px">
+      <button id="sp_save_message" class="sp-btn sp-btn-secondary">💾 Salvar Mensagem</button>
+    </div>
+
+    <div class="sp-title" style="font-size:13px;margin-top:10px">📱 Preview</div>
+    <div class="wa-chat">
+      <div class="wa-bubble">
+        <img id="sp_preview_img" src="" style="display:none;max-width:100%;border-radius:10px;margin-bottom:8px" />
+        <div id="sp_preview_text" style="white-space:pre-wrap;word-break:break-word"></div>
+        <div class="wa-time">
+          <span id="sp_preview_meta"></span>
+          <span class="wa-ticks">✓✓</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sp-row" style="margin-top:10px">
+      <button id="sp_build_queue" class="sp-btn sp-btn-primary" style="flex:1">📋 Gerar tabela</button>
+      <button id="sp_clear_fields" class="sp-btn sp-btn-secondary" style="flex:1">🧹 Limpar</button>
+    </div>
+
+    <div id="sp_hint" class="sp-status"></div>
+  </div>
+
+  <div class="sp-card">
+    <div class="sp-title">🚀 Campanha</div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <div style="flex:1;min-width:90px;background:rgba(0,0,0,0.10);border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:8px">
+        <div class="sp-muted" style="font-size:10px">✅ Enviadas</div>
+        <div id="sp_stat_sent" style="font-size:16px;font-weight:900">0</div>
+      </div>
+      <div style="flex:1;min-width:90px;background:rgba(0,0,0,0.10);border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:8px">
+        <div class="sp-muted" style="font-size:10px">❌ Falhas</div>
+        <div id="sp_stat_failed" style="font-size:16px;font-weight:900">0</div>
+      </div>
+      <div style="flex:1;min-width:90px;background:rgba(0,0,0,0.10);border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:8px">
+        <div class="sp-muted" style="font-size:10px">⏳ Pendentes</div>
+        <div id="sp_stat_pending" style="font-size:16px;font-weight:900">0</div>
+      </div>
+    </div>
+
+    <div style="margin-top:10px">
+      <div class="sp-muted" id="sp_progress_text">0%</div>
+      <div style="height:10px;background:rgba(255,255,255,0.10);border-radius:999px;overflow:hidden">
+        <div id="sp_progress_fill" style="height:100%;width:0%;background:rgba(37,211,102,0.85)"></div>
+      </div>
+      <div class="sp-muted" id="sp_estimated_time" style="margin-top:6px"></div>
+    </div>
+
+    <div class="sp-row" style="margin-top:10px">
+      <button id="sp_start" class="sp-btn sp-btn-primary" style="flex:1">▶️ Iniciar</button>
+      <button id="sp_pause" class="sp-btn sp-btn-secondary" style="flex:1">⏸️ Pausar</button>
+      <button id="sp_stop" class="sp-btn sp-btn-danger" style="flex:1">⏹️ Parar</button>
+    </div>
+
+    <div id="sp_campaign_status" class="sp-status"></div>
+  </div>
+
+  <div class="sp-card">
+    <div class="sp-title">📋 Tabela / Fila</div>
+    <div class="sp-muted" id="sp_queue_meta">0 contatos</div>
+
+    <div class="sp-queue-container" style="margin-top:8px">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:44px">#</th>
+            <th>Número</th>
+            <th style="width:92px">Status</th>
+            <th style="width:70px">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="sp_queue_table"></tbody>
+      </table>
+    </div>
+
+    <div class="sp-row" style="margin-top:10px">
+      <button id="sp_skip" class="sp-btn sp-btn-secondary" style="flex:1">⏭️ Pular atual</button>
+      <button id="sp_wipe" class="sp-btn sp-btn-danger" style="flex:1">🧨 Zerar fila</button>
+    </div>
+  </div>
+</section>
+
+            <!-- ============ VIEW: EXTRATOR ============ -->
+            <section id="whlViewExtrator" class="whl-view hidden">
+  <div class="sp-card">
+    <div class="sp-title">📥 Extrator de contatos</div>
+    <div class="sp-muted">Extrai contatos Normais, Arquivados e Bloqueados do WhatsApp Web.</div>
+
+    <div class="sp-row">
+      <button id="sp_extract_contacts" class="sp-btn sp-btn-primary">📥 Extrair</button>
+      <button id="sp_refresh_extract" class="sp-btn sp-btn-secondary">🔄 Atualizar</button>
+      <button id="sp_copy_extract_all" class="sp-btn sp-btn-secondary">📋 Copiar Todos</button>
+    </div>
+
+    <div id="sp_extract_status" class="sp-status">Pronto.</div>
+
+    <div style="margin-top:10px">
+      <div class="sp-title" style="font-size:13px">✅ Normais (<span id="sp_count_normal">0</span>)</div>
+      <textarea id="sp_normal_list" class="sp-textarea"></textarea>
+      <div class="sp-row" style="margin-top:6px">
+        <button id="sp_copy_normal" class="sp-btn sp-btn-secondary">📋 Copiar Normais</button>
+      </div>
+
+      <div class="sp-title" style="font-size:13px;margin-top:12px">📁 Arquivados (<span id="sp_count_archived">0</span>)</div>
+      <textarea id="sp_archived_list" class="sp-textarea"></textarea>
+      <div class="sp-row" style="margin-top:6px">
+        <button id="sp_copy_archived" class="sp-btn sp-btn-secondary">📋 Copiar Arquivados</button>
+      </div>
+
+      <div class="sp-title" style="font-size:13px;margin-top:12px">⛔ Bloqueados (<span id="sp_count_blocked">0</span>)</div>
+      <textarea id="sp_blocked_list" class="sp-textarea"></textarea>
+      <div class="sp-row" style="margin-top:6px">
+        <button id="sp_copy_blocked" class="sp-btn sp-btn-secondary">📋 Copiar Bloqueados</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+            <!-- ============ VIEW: GRUPOS (V6 - EXISTENTE) ============ -->
+            <section id="whlViewGroups" class="whl-view hidden">
+
+
+        <!-- ========================================
+             BARRA DE STATUS
+        ======================================== -->
+        <div id="statusBar" class="status-bar hidden">
+            <span id="statusText">Aguardando...</span>
+            <div id="progressBar" class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+                <span class="progress-text" id="progressPercent">0%</span>
+            </div>
+            <!-- Controles de extração -->
+            <div id="extractionControls" class="extraction-controls hidden">
+                <button id="btnPauseExtraction" class="btn-control btn-control-pause" title="Pausar extração">
+                    ⏸️ Pausar
+                </button>
+                <button id="btnResumeExtraction" class="btn-control btn-control-resume hidden" title="Continuar extração">
+                    ▶️ Continuar
+                </button>
+                <button id="btnStopExtraction" class="btn-control btn-control-stop" title="Parar extração">
+                    ⏹️ Parar
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================
+             ETAPA 1: CARREGAR GRUPOS
+        ======================================== -->
+        <section id="step1" class="step">
+            <!-- Balão de dica -->
+            <div class="tip-bubble" id="tipBubble">
+                <div class="tip-content">
+                    💡 Clique em <strong>"Carregar Grupos"</strong> para começar!
+                </div>
+            </div>
+
+            <button id="btnLoadGroups" class="btn btn-primary btn-large">
+                <span class="btn-icon">📂</span>
+                Carregar Grupos
+            </button>
+
+            <!-- Atalhos -->
+            <div class="shortcuts-box">
+                <p class="shortcuts-title">⌨️ Atalhos:</p>
+                <ul class="shortcuts-list">
+                    <li><kbd>Ctrl+L</kbd> Carregar grupos</li>
+                    <li><kbd>Ctrl+H</kbd> Ver histórico</li>
+                    <li><kbd>Ctrl+F</kbd> Buscar grupo</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ========================================
+             ETAPA 2: SELECIONAR GRUPO
+        ======================================== -->
+        <section id="step2" class="step hidden">
+            <div class="groups-header">
+                <h2>Selecione um Grupo</h2>
+                <span id="groupCount" class="badge">0 grupos</span>
+            </div>
+
+            <!-- Estatísticas -->
+            <div id="groupStats" class="group-stats">
+                <div class="stat-item" id="statTotal">
+                    <span class="stat-icon">📊</span>
+                    <div class="stat-info">
+                        <span class="stat-label">Total:</span>
+                        <span class="stat-value">0</span>
+                        <span class="stat-unit">grupos</span>
+                    </div>
+                </div>
+                
+                <!-- SEPARADOR 1 - Entre Total e Ativos -->
+                <div class="stats-separator"></div>
+                
+                <div class="stat-item" id="statActive">
+                    <span class="stat-icon">✅</span>
+                    <div class="stat-info">
+                        <span class="stat-label">Ativos:</span>
+                        <span class="stat-value">0</span>
+                    </div>
+                </div>
+                
+                <!-- SEPARADOR 2 - Entre Ativos e Arquivados -->
+                <div class="stats-separator"></div>
+                
+                <div class="stat-item" id="statArchived">
+                    <span class="stat-icon">📦</span>
+                    <div class="stat-info">
+                        <span class="stat-label">Arquivados:</span>
+                        <span class="stat-value">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros por abas -->
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all">
+                    <span class="tab-icon">📋</span> Todos
+                </button>
+                <button class="filter-tab" data-filter="active">
+                    <span class="tab-icon">💬</span> Ativos
+                </button>
+                <button class="filter-tab" data-filter="archived">
+                    <span class="tab-icon">📦</span> Arquivados
+                </button>
+            </div>
+
+            <!-- Campo de busca -->
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input 
+                    type="text" 
+                    id="searchGroups" 
+                    placeholder="Filtrar grupos..." 
+                    autocomplete="off" 
+                />
+            </div>
+
+            <!-- Lista de grupos (Virtual Scroll) -->
+            <div id="groupsList" class="groups-list">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Carregando grupos...</p>
+                </div>
+            </div>
+
+            <!-- Ações -->
+            <div class="actions">
+                <button id="btnBack" class="btn btn-secondary">
+                    ← Voltar
+                </button>
+                <button id="btnExtract" class="btn btn-primary" disabled>
+                    <span class="btn-icon">📥</span>
+                    Extrair Membros
+                </button>
+            </div>
+        </section>
+
+        <!-- ========================================
+             ETAPA 3: RESULTADO
+        ======================================== -->
+        <section id="step3" class="step hidden">
+            <div class="result-header">
+                <span class="result-icon">✅</span>
+                <h2>Extração Concluída!</h2>
+            </div>
+
+            <!-- Informações do resultado -->
+            <div class="result-info">
+                <div class="result-item">
+                    <span class="label">Grupo:</span>
+                    <span id="resultGroupName" class="value">-</span>
+                </div>
+                <div class="result-item">
+                    <span class="label">Status:</span>
+                    <span id="resultGroupStatus" class="value">-</span>
+                </div>
+                <div class="result-item">
+                    <span class="label">Membros:</span>
+                    <span id="resultMemberCount" class="value">-</span>
+                </div>
+            </div>
+
+            <!-- Lista de membros extraídos (Virtual Scroll) -->
+            <div class="members-container">
+                <h3 class="members-title">
+                    <span class="members-icon">👥</span>
+                    Membros Extraídos
+                </h3>
+                <div id="membersList" class="members-list">
+                    <!-- Membros serão inseridos aqui via Virtual Scroll -->
+                </div>
+            </div>
+
+            <!-- Botões de exportação -->
+            <div class="export-buttons">
+                <button id="btnExportCSV" class="btn btn-export" title="Exportar como CSV (Ctrl+S)">
+                    📄 CSV
+                </button>
+                <button id="btnCopyList" class="btn btn-export" title="Copiar lista">
+                    📋 Copiar
+                </button>
+            </div>
+
+            <!-- Botões Google Sheets -->
+            <div class="sheets-buttons">
+                <button id="btnCopySheets" class="btn btn-sheets" title="Copiar para Google Sheets (Ctrl+G)">
+                    <span class="btn-icon">📊</span> Copiar para Sheets
+                </button>
+                <button id="btnOpenSheets" class="btn btn-sheets-outline" title="Abrir no Google Sheets">
+                    <span class="btn-icon">🔗</span> Abrir no Sheets
+                </button>
+            </div>
+
+            <!-- Botão nova extração -->
+            <button id="btnNewExtraction" class="btn btn-secondary btn-large">
+                🔄 Nova Extração
+            </button>
+        </section>
+
+        <!-- ========================================
+             ETAPA 4: HISTÓRICO
+        ======================================== -->
+        <section id="step4" class="step hidden">
+            <div class="history-header">
+                <h2>📜 Histórico de Extrações</h2>
+            </div>
+
+            <!-- Estatísticas do histórico -->
+            <div id="historyStats" class="history-stats">
+                <!-- Stats serão inseridas dinamicamente -->
+            </div>
+
+            <!-- Lista do histórico -->
+            <div id="historyList" class="history-list">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Carregando histórico...</p>
+                </div>
+            </div>
+
+            <!-- Ações do histórico -->
+            <div class="actions">
+                <button id="btnBackFromHistory" class="btn btn-secondary">
+                    ← Voltar
+                </button>
+                <button id="btnClearHistory" class="btn btn-danger">
+                    🗑️ Limpar Tudo
+                </button>
+            </div>
+        </section>
+
+        <!-- ========================================
+             MENSAGEM DE ERRO
+        ======================================== -->
+        <div id="errorBox" class="error-box hidden">
+            <span class="error-icon">⚠️</span>
+            <span id="errorText" class="error-text">Erro desconhecido</span>
+            <button id="btnDismissError" class="btn-dismiss" title="Fechar">
+                ✕
+            </button>
+        </div>
+
+            </section>
+
+            <!-- ============ VIEW: RECOVER ============ -->
+            <section id="whlViewRecover" class="whl-view hidden">
+  <div class="sp-card">
+    <div class="sp-title">🔄 Recover</div>
+    <div class="sp-muted">Mostra mensagens apagadas/editadas capturadas em tempo real (salvas no histórico local do WhatsApp Web).</div>
+
+    <div class="sp-row">
+      <button id="sp_refresh_recover" class="sp-btn sp-btn-secondary">🔄 Atualizar</button>
+      <button id="sp_export_recover" class="sp-btn sp-btn-secondary">⬇️ Exportar JSON</button>
+      <button id="sp_clear_recover" class="sp-btn sp-btn-danger">🗑️ Limpar</button>
+    </div>
+
+    <div class="sp-row" style="margin-top:8px;align-items:center;justify-content:space-between">
+      <div class="sp-muted">Total: <b id="sp_recover_total">0</b></div>
+      <div class="sp-muted">Mostrando até 200</div>
+    </div>
+
+    <div id="sp_recover_status" class="sp-status">Pronto.</div>
+
+    <div id="sp_recover_timeline" class="timeline-container"></div>
+  </div>
+</section>
+
+            <!-- ============ VIEW: CONFIG ============ -->
+            <section id="whlViewConfig" class="whl-view hidden">
+  <div class="sp-card">
+    <div class="sp-title">⚙️ Configurações</div>
+    <div class="sp-muted">Ajuste delays, agendamento, rascunhos e relatório (igual ao módulo original).</div>
+
+    <label class="sp-label">⏱️ Delay mínimo (segundos)</label>
+    <input id="sp_delay_min" type="number" class="sp-input" min="0" step="0.5" placeholder="Ex: 2" />
+
+    <label class="sp-label" style="margin-top:10px">⏱️ Delay máximo (segundos)</label>
+    <input id="sp_delay_max" type="number" class="sp-input" min="0" step="0.5" placeholder="Ex: 6" />
+
+    <label class="sp-label" style="margin-top:10px">⏰ Agendar envio (AAAA-MM-DD HH:MM) — opcional</label>
+    <input id="sp_schedule" type="datetime-local" class="sp-input" />
+
+    <div class="sp-row" style="margin-top:10px">
+      <button id="sp_save_settings" class="sp-btn sp-btn-primary" style="flex:1">💾 Salvar</button>
+      <button id="sp_reload_settings" class="sp-btn sp-btn-secondary" style="flex:1">🔄 Recarregar</button>
+    </div>
+
+    <div id="sp_config_status" class="sp-status">Pronto.</div>
+  </div>
+
+  <div class="sp-card">
+    <div class="sp-title">💾 Rascunhos</div>
+    <div class="sp-muted">Salva e restaura fila, mensagem, imagem e contatos extraídos.</div>
+
+    <div class="sp-row" style="align-items:center">
+      <input id="sp_draft_name" type="text" class="sp-input" placeholder="Nome do rascunho" />
+      <button id="sp_save_draft" class="sp-btn sp-btn-primary" style="white-space:nowrap">Salvar</button>
+    </div>
+
+    <div class="sp-queue-container" style="margin-top:8px;max-height:36vh">
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th style="width:92px">Data</th>
+            <th style="width:52px">#</th>
+            <th style="width:92px">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="sp_drafts_body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sp-card">
+    <div class="sp-title">📄 Relatório</div>
+    <div class="sp-muted">Exportar CSV da fila e copiar falhas.</div>
+
+    <div class="sp-row">
+      <button id="sp_export_report" class="sp-btn sp-btn-secondary" style="flex:1">⬇️ Exportar CSV</button>
+      <button id="sp_copy_failed" class="sp-btn sp-btn-secondary" style="flex:1">📋 Copiar falhas</button>
+    </div>
+
+    <div id="sp_report_hint" class="sp-status"></div>
+  </div>
+</section>
+
+        </div>
+
+
+
+        <!-- ========================================
+             FOOTER
+        ======================================== -->
+        <footer class="footer">
+            <span class="footer-text">
+                WhatsApp Group Member Extractor
+            </span>
+        </footer>
+    </div>
+
+    <!-- ========================================
+         SCRIPTS - SEM type="module"
+    ======================================== -->
+    <script src="utils/utils-optimized.js"></script>
+    <script src="utils/storage.js"></script>
+    <script src="utils/google-sheets-export.js"></script>
+    <script src="sidepanel.js"></script>
+    <script src="sidepanel-router.js"></script>
+</body>
+</html>

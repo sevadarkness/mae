@@ -1,0 +1,87 @@
+{
+  "manifest_version": 3,
+  "name": "WhatsHybrid Lite Fusion",
+  "version": "1.4.6",
+  "description": "WhatsHybrid Lite Fusion — união completa do WhatsHybrid Lite + Group Extractor v6 (Side Panel + Top Panel), com Disparo de mensagens (envio em massa) restaurado + correções de navegação/scroll.",
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "action": {
+    "default_title": "WhatsHybrid Lite",
+    "default_popup": "popup/popup.html"
+  },
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "scripting",
+    "sidePanel",
+    "storage",
+    "tabs",
+    "unlimitedStorage",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "https://web.whatsapp.com/*",
+    "https://api.whatsapp.com/*",
+    "https://*.whatsapp.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://web.whatsapp.com/*",
+        "https://api.whatsapp.com/*"
+      ],
+      "js": [
+        "content/utils/constants.js",
+        "content/utils/logger.js",
+        "content/utils/phone-validator.js",
+        "content/utils/selectors.js",
+        "content/worker-content.js",
+        "content/content.js"
+      ],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "content/top-panel-injector.js",
+        "content/extractor-v6-optimized.js",
+        "content/waextractor.v6.js"
+      ],
+      "css": [
+        "content/top-panel.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/extractor.contacts.js",
+        "content/inject.js",
+        "content/wpp-hooks.js",
+        "icons/*.png",
+        "icons/128.png",
+        "icons/16.png",
+        "icons/48.png",
+        "utils/google-sheets-export.js",
+        "utils/storage.js",
+        "utils/utils-optimized.js"
+      ],
+      "matches": [
+        "https://api.whatsapp.com/*",
+        "https://web.whatsapp.com/*"
+      ]
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
+}
