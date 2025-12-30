@@ -48,16 +48,63 @@
     return `${hh}:${mm}`;
   }
 
-  function normalizeFromId(from) {
+  function normalizeFromId(from, fullObj = null) {
+    // Tenta extrair número de múltiplas fontes
+    const sources = [
+      from,
+      fullObj?.phoneNumber,
+      fullObj?.number,
+      fullObj?.sender,
+      fullObj?.from,
+      fullObj?.chat,
+      fullObj?.jid,
+      fullObj?.id?.user,
+      fullObj?.id?._serialized
+    ];
+    
+    for (const src of sources) {
+      if (!src) continue;
+      let s = String(src).trim();
+      
+      // Remove sufixos do WhatsApp
+      s = s
+        .replace(/@c\.us/g, '')
+        .replace(/@s\.whatsapp\.net/g, '')
+        .replace(/@g\.us/g, '')
+        .replace(/@broadcast/g, '')
+        .replace(/@lid/g, '');
+      
+      // Extrai apenas dígitos
+      const digits = s.replace(/\D/g, '');
+      
+      // Se tem entre 10 e 15 dígitos, é provavelmente um número de telefone
+      if (digits.length >= 10 && digits.length <= 15) {
+        // Formata o número de forma legível
+        if (digits.startsWith('55') && digits.length >= 12) {
+          // Número brasileiro
+          const ddd = digits.slice(2, 4);
+          const rest = digits.slice(4);
+          if (rest.length === 9) {
+            return `+55 ${ddd} ${rest.slice(0, 5)}-${rest.slice(5)}`;
+          } else if (rest.length === 8) {
+            return `+55 ${ddd} ${rest.slice(0, 4)}-${rest.slice(4)}`;
+          }
+        }
+        // Outros números internacionais
+        return '+' + digits;
+      }
+    }
+    
+    // Se não encontrou número válido, retorna o original limpo
     let s = String(from ?? '').trim();
-    if (!s) return '';
-    // remove sufixos comuns
     s = s
       .replace(/@c\.us/g, '')
       .replace(/@s\.whatsapp\.net/g, '')
       .replace(/@g\.us/g, '')
-      .replace(/@broadcast/g, '');
-    return s;
+      .replace(/@broadcast/g, '')
+      .replace(/@lid/g, '');
+    
+    return s || 'Desconhecido';
   }
 
   function joinNonEmptyLines(...parts) {
@@ -944,7 +991,7 @@
     const type = (h?.type || 'unknown');
     const klass = type === 'deleted' ? 'deleted' : (type === 'edited' ? 'edited' : '');
     const typeLabel = type === 'deleted' ? '🗑️ Apagada' : (type === 'edited' ? '✏️ Editada' : 'ℹ️');
-    const from = normalizeFromId(h?.from || h?.chat || h?.jid || '');
+    const from = normalizeFromId(h?.from || h?.chat || h?.jid || '', h);
     const ts = new Date(h?.timestamp || Date.now());
     const hh = String(ts.getHours()).padStart(2,'0');
     const mm = String(ts.getMinutes()).padStart(2,'0');
