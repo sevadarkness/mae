@@ -93,11 +93,27 @@ class AntiBanSystem {
    * Calcula delay inteligente com variação gaussiana
    */
   calculateSmartDelay(baseMin, baseMax) {
-    // Função gaussiana (Box-Muller transform)
+    // Função gaussiana (Box-Muller transform) com safety counter
     const gaussian = () => {
       let u = 0, v = 0;
-      while (u === 0) u = Math.random();
-      while (v === 0) v = Math.random();
+      let counter = 0;
+      const maxIterations = 100;
+      
+      while (u === 0 && counter < maxIterations) {
+        u = Math.random();
+        counter++;
+      }
+      
+      counter = 0;
+      while (v === 0 && counter < maxIterations) {
+        v = Math.random();
+        counter++;
+      }
+      
+      // Fallback if random generation failed
+      if (u === 0) u = 0.5;
+      if (v === 0) v = 0.5;
+      
       return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
     };
     

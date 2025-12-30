@@ -10,6 +10,7 @@ class NotificationSystem {
     this.STORAGE_KEY = 'whl_notification_settings';
     this.enabled = true;
     this.soundEnabled = true;
+    this.audioContext = null; // Reuse AudioContext
     this.init();
   }
 
@@ -20,6 +21,16 @@ class NotificationSystem {
     } catch (error) {
       console.error('[Notifications] Erro na inicialização:', error);
     }
+  }
+  
+  /**
+   * Get or create AudioContext (reuse existing one)
+   */
+  getAudioContext() {
+    if (!this.audioContext || this.audioContext.state === 'closed') {
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return this.audioContext;
   }
 
   /**
@@ -151,7 +162,7 @@ class NotificationSystem {
    */
   playSound(type) {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = this.getAudioContext();
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
       
@@ -188,7 +199,8 @@ class NotificationSystem {
         gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
         setTimeout(() => {
           oscillator.stop();
-          ctx.close();
+          oscillator.disconnect();
+          gainNode.disconnect();
         }, 100);
       }, 200);
     } catch (error) {
