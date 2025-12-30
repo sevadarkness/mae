@@ -14,6 +14,10 @@ window.whl_hooks_main = () => {
         error: (...args) => console.error('[WHL Hooks]', ...args)
     };
     
+    // ===== CONSTANTS =====
+    // WhatsApp ID suffixes pattern for removal
+    const WHATSAPP_SUFFIXES_REGEX = /@c\.us|@s\.whatsapp\.net|@g\.us|@broadcast|@lid/g;
+    
     // ===== HELPER FUNCTIONS FOR GROUP MEMBER EXTRACTION =====
     function safeRequire(name) {
         try {
@@ -121,13 +125,8 @@ window.whl_hooks_main = () => {
             if (!src) continue;
             let s = String(src).trim();
             
-            // Remove TODOS os sufixos do WhatsApp
-            s = s
-                .replace(/@c\.us/g, '')
-                .replace(/@s\.whatsapp\.net/g, '')
-                .replace(/@g\.us/g, '')
-                .replace(/@broadcast/g, '')
-                .replace(/@lid/g, '');
+            // Remove TODOS os sufixos do WhatsApp usando regex constante
+            s = s.replace(WHATSAPP_SUFFIXES_REGEX, '');
             
             // Extrai apenas dígitos
             const digits = s.replace(/\D/g, '');
@@ -144,8 +143,7 @@ window.whl_hooks_main = () => {
                        message?.id?.remote?._serialized || 
                        message?.from?.user || '';
         
-        fallback = String(fallback)
-            .replace(/@c\.us|@s\.whatsapp\.net|@g\.us|@broadcast|@lid/g, '');
+        fallback = String(fallback).replace(WHATSAPP_SUFFIXES_REGEX, '');
         
         return fallback || 'Desconhecido';
     }

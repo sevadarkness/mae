@@ -1,6 +1,16 @@
 /**
  * Tests for extractPhoneNumber function in wpp-hooks.js
- * Run this in browser console on WhatsApp Web page to test
+ * 
+ * HOW TO RUN:
+ * 1. Load the extension in Chrome/Edge
+ * 2. Open WhatsApp Web (https://web.whatsapp.com)
+ * 3. Open browser Developer Console (F12)
+ * 4. Copy and paste the entire contents of this file into the console
+ * 5. Press Enter to run the tests
+ * 
+ * NOTE: This file contains a copy of the extractPhoneNumber function for testing purposes.
+ * The actual implementation is in content/wpp-hooks.js. When making changes to the actual
+ * function, remember to update this test file as well.
  * 
  * This tests the fix for Bug: Recover showing LID instead of phone number
  */
@@ -29,7 +39,12 @@
   }
   
   // Mock extractPhoneNumber function from wpp-hooks.js
+  // NOTE: This is a copy of the actual implementation for testing.
+  // Keep this in sync with content/wpp-hooks.js when making changes.
   function extractPhoneNumber(message) {
+    // WhatsApp ID suffixes pattern (same as in wpp-hooks.js)
+    const WHATSAPP_SUFFIXES_REGEX = /@c\.us|@s\.whatsapp\.net|@g\.us|@broadcast|@lid/g;
+    
     // Lista de campos onde o número pode estar
     const sources = [
       message?.sender,
@@ -53,13 +68,8 @@
       if (!src) continue;
       let s = String(src).trim();
       
-      // Remove TODOS os sufixos do WhatsApp
-      s = s
-        .replace(/@c\.us/g, '')
-        .replace(/@s\.whatsapp\.net/g, '')
-        .replace(/@g\.us/g, '')
-        .replace(/@broadcast/g, '')
-        .replace(/@lid/g, '');
+      // Remove TODOS os sufixos do WhatsApp usando regex constante
+      s = s.replace(WHATSAPP_SUFFIXES_REGEX, '');
       
       // Extrai apenas dígitos
       const digits = s.replace(/\D/g, '');
@@ -76,8 +86,7 @@
                    message?.id?.remote?._serialized || 
                    message?.from?.user || '';
     
-    fallback = String(fallback)
-      .replace(/@c\.us|@s\.whatsapp\.net|@g\.us|@broadcast|@lid/g, '');
+    fallback = String(fallback).replace(WHATSAPP_SUFFIXES_REGEX, '');
     
     return fallback || 'Desconhecido';
   }
@@ -317,9 +326,12 @@
     console.log('\n⚠️ Some tests failed. Review the output above.');
   }
   
-  // Store results globally for inspection
+  // Store results globally for inspection (only in browser environment)
+  // This allows developers to inspect test results after execution via:
+  // window.WHL_ExtractPhoneNumberTestResults
   if (typeof window !== 'undefined') {
     window.WHL_ExtractPhoneNumberTestResults = tests;
+    console.log('\n💾 Test results stored in window.WHL_ExtractPhoneNumberTestResults');
   }
   
 })();
