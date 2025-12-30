@@ -85,10 +85,10 @@
           const ddd = digits.slice(2, 4);
           const rest = digits.slice(4);
           if (rest.length === 9) {
-            // Celular: 55 + DDD + 9 dígitos
+            // Celular: 9 dígitos após o DDD
             return `+55 ${ddd} ${rest.slice(0, 5)}-${rest.slice(5)}`;
           } else if (rest.length === 8) {
-            // Fixo: 55 + DDD + 8 dígitos
+            // Fixo: 8 dígitos após o DDD
             return `+55 ${ddd} ${rest.slice(0, 4)}-${rest.slice(4)}`;
           }
         }
