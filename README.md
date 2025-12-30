@@ -54,6 +54,20 @@ Os números de telefone utilizados são sempre os números reais dos contatos:
 - Efeito de digitação para simular comportamento humano
 - **NOVO**: Pressione Enter no campo de mensagem para gerar tabela automaticamente
 
+### 📝 Templates de Mensagens
+- **NOVO**: Sistema completo de templates reutilizáveis
+- Organização por categoria (Vendas, Suporte, Marketing, Cobrança, Outros)
+- Variáveis dinâmicas suportadas:
+  - `{nome}` - Nome do contato
+  - `{empresa}` - Empresa do contato
+  - `{data}` - Data atual formatada (30/12/2025)
+  - `{hora}` - Hora atual (14:30)
+  - `{numero}` - Número do destinatário
+  - `{saudacao}` - Saudação automática (Bom dia/Boa tarde/Boa noite)
+- Interface visual para criar, editar e excluir templates
+- Seletor de templates na tela principal
+- Preview com variáveis processadas em tempo real
+
 ### Gerenciamento de Campanhas
 - Importação de números via textarea ou CSV
 - Preview da mensagem no estilo WhatsApp
