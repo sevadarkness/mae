@@ -999,8 +999,25 @@
     const mm = String(ts.getMinutes()).padStart(2,'0');
 
     const raw = String(h?.body || h?.message || h?.text || '');
-    const textHtml = escapeHtml(raw);
     const encoded = encodeURIComponent(raw);
+    
+    // Detectar se é imagem base64
+    const isBase64Image = raw.startsWith('/9j/') || raw.startsWith('iVBOR') || raw.startsWith('data:image');
+    
+    let contentHtml;
+    if (type === 'image' || isBase64Image) {
+      // Determinar o formato
+      let dataUrl = raw;
+      if (raw.startsWith('/9j/')) {
+        dataUrl = `data:image/jpeg;base64,${raw}`;
+      } else if (raw.startsWith('iVBOR')) {
+        dataUrl = `data:image/png;base64,${raw}`;
+      }
+      
+      contentHtml = `<img src="${escapeHtml(dataUrl)}" alt="Imagem recuperada" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="window.open('${escapeHtml(dataUrl)}', '_blank')" />`;
+    } else {
+      contentHtml = `<p class="original-message">${escapeHtml(raw) || '<i>(vazio)</i>'}</p>`;
+    }
 
     return `
       <div class="timeline-item ${klass}">
@@ -1012,7 +1029,7 @@
             <span class="message-type ${klass}">${escapeHtml(typeLabel)}</span>
           </div>
           <div class="card-body">
-            <p class="original-message">${textHtml || '<i>(vazio)</i>'}</p>
+            ${contentHtml}
           </div>
           <div class="card-footer">
             <span class="date">${ts.toLocaleDateString()}</span>

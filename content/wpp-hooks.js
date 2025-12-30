@@ -1203,6 +1203,31 @@ window.whl_hooks_main = () => {
     }
     
     /**
+     * Detecta o tipo de mensagem baseado no conteúdo
+     * @param {string} body - O conteúdo da mensagem
+     * @param {string} originalType - O tipo original da mensagem
+     * @returns {string} - O tipo detectado ('image', 'video', 'audio', 'text')
+     */
+    function detectMessageType(body, originalType) {
+        if (!body || typeof body !== 'string') return originalType || 'text';
+        
+        // Detectar imagens base64
+        // JPEG começa com /9j/
+        // PNG começa com iVBOR
+        if (body.startsWith('/9j/') || body.startsWith('iVBOR')) {
+            return 'image';
+        }
+        
+        // Detectar data URLs
+        if (body.startsWith('data:image')) return 'image';
+        if (body.startsWith('data:video')) return 'video';
+        if (body.startsWith('data:audio')) return 'audio';
+        
+        // Manter tipo original se não for detectado
+        return originalType || 'text';
+    }
+    
+    /**
      * CORREÇÃO BUG 4: Função para salvar mensagem recuperada
      */
     /**
@@ -1301,7 +1326,7 @@ window.whl_hooks_main = () => {
             id: msg.id?.id || Date.now().toString(),
             from: from,
             body: body,
-            type: msg.type || 'chat',
+            type: detectMessageType(body, msg.type), // ← USAR DETECÇÃO
             timestamp: Date.now()
         };
         
