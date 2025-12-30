@@ -2758,7 +2758,7 @@
       whlLog.warn('VALIDAÇÃO: Não foi possível determinar o número do chat aberto');
       whlLog.warn('VALIDAÇÃO INCONCLUSIVA: Prosseguindo com o envio (não bloqueante)');
       // Se não conseguimos validar, NÃO bloqueamos o envio - continuamos
-      return true;
+      return { valid: true, chatNumber: null };
     }
     
     // Normalizar o número do chat
@@ -2781,7 +2781,7 @@
     whlLog.debug('  Sufixo do chat:', chatSuffix);
     whlLog.debug('  Validação:', isValid ? '✅ VÁLIDO' : '❌ INVÁLIDO');
     
-    return isValid;
+    return { valid: isValid, chatNumber: normalizedChat };
   }
 
   // Função auxiliar para extrair números de texto
