@@ -275,6 +275,66 @@
     return false;
   }
   
+  /**
+   * Resolve um LID (Local ID) para o número de telefone real
+   * Busca no ContactCollection do WhatsApp
+   * @param {string} lid - O LID a ser resolvido (ex: '143379161678071')
+   * @returns {string|null} - O número de telefone ou null se não encontrado
+   */
+  function resolveLidToPhone(lid) {
+    if (!lid) return null;
+    
+    // Limpar o LID usando o regex padrão
+    const cleanLid = String(lid).replace(WHATSAPP_SUFFIXES_REGEX, '');
+    
+    try {
+      // Check if require is available (when running in WhatsApp Web context)
+      if (typeof require !== 'function') {
+        console.warn('[WHL Test] require() not available, skipping LID resolution');
+        return null;
+      }
+      
+      const CC = require('WAWebContactCollection');
+      
+      // Método 1: Buscar diretamente pelo LID
+      const contact = CC.ContactCollection.get(cleanLid + '@lid');
+      if (contact && contact.phoneNumber) {
+        const phone = contact.phoneNumber._serialized || contact.phoneNumber.user;
+        if (phone) {
+          const cleanPhone = String(phone).replace(WHATSAPP_SUFFIXES_REGEX, '');
+          // Validar se é um número válido
+          if (/^\d{10,15}$/.test(cleanPhone)) {
+            console.log('[WHL Test] LID resolvido:', cleanLid, '→', cleanPhone);
+            return cleanPhone;
+          }
+        }
+      }
+      
+      // Método 2: Buscar na lista de contatos
+      const contacts = CC.ContactCollection.getModelsArray() || [];
+      const found = contacts.find(c => 
+        c.id.user === cleanLid || 
+        c.id._serialized === cleanLid + '@lid'
+      );
+      
+      if (found && found.phoneNumber) {
+        const phone = found.phoneNumber._serialized || found.phoneNumber.user;
+        if (phone) {
+          const cleanPhone = String(phone).replace(WHATSAPP_SUFFIXES_REGEX, '');
+          if (/^\d{10,15}$/.test(cleanPhone)) {
+            console.log('[WHL Test] LID resolvido via busca:', cleanLid, '→', cleanPhone);
+            return cleanPhone;
+          }
+        }
+      }
+      
+    } catch(e) {
+      console.warn('[WHL Test] Erro ao resolver LID:', e.message);
+    }
+    
+    return null;
+  }
+  
   function extractPhoneNumber(message) {
     // Lista de campos onde o número pode estar
     const sources = [
@@ -295,12 +355,26 @@
       message?.id?.participant?.user
     ];
     
+    // Coletar LIDs encontrados para fallback
+    const foundLids = [];
+    
     for (const src of sources) {
       if (!src) continue;
       let s = String(src).trim();
       
-      // Skip LID sources entirely (before removing suffixes)
-      if (s.includes('@lid')) continue;
+      // Se é um LID, tentar resolver para número real
+      if (s.includes('@lid')) {
+        const resolved = resolveLidToPhone(s);
+        if (resolved) {
+          return resolved;
+        }
+        // Coletar LID para fallback
+        const lidMatch = s.match(/(\d{10,15})@lid/);
+        if (lidMatch) {
+          foundLids.push(lidMatch[1]);
+        }
+        continue; // Pular este source se não conseguir resolver
+      }
       
       // Remove TODOS os sufixos do WhatsApp usando regex constante
       s = s.replace(WHATSAPP_SUFFIXES_REGEX, '');
@@ -314,20 +388,15 @@
       }
     }
     
-    // Fallback: retorna o que tiver, limpo
-    let fallbackSrc = message?.author?._serialized || 
-                      message?.from?._serialized || 
-                      message?.id?.remote?._serialized || 
-                      message?.from?.user || '';
-    
-    // Skip fallback if it's a LID
-    if (String(fallbackSrc).includes('@lid')) {
-      return 'Desconhecido';
+    // Fallback: tentar resolver LIDs coletados
+    for (const lid of foundLids) {
+      const resolved = resolveLidToPhone(lid);
+      if (resolved) {
+        return resolved;
+      }
     }
     
-    let fallback = String(fallbackSrc).replace(WHATSAPP_SUFFIXES_REGEX, '');
-    
-    return fallback || 'Desconhecido';
+    return 'Desconhecido';
   }
   
   // Test 1: Extract from standard WhatsApp ID
@@ -522,8 +591,8 @@
     extractPhoneNumber({
       from: { _serialized: 'abc123@c.us' }
     }),
-    'abc123',
-    'Invalid format falls back to cleaned string'
+    'Desconhecido',
+    'Invalid format returns Desconhecido'
   );
   
   assertEquals(
@@ -532,14 +601,17 @@
     'Empty message object returns Desconhecido'
   );
   
-  // Test 7: LID Rejection (Main Fix)
-  console.log('\n--- Test Group: LID Rejection (Main Bug Fix) ---');
+  // Test 7: LID Resolution (Main Fix)
+  console.log('\n--- Test Group: LID Resolution (Main Bug Fix) ---');
+  console.log('Note: LID resolution requires WhatsApp Web ContactCollection to be loaded');
+  console.log('When ContactCollection is not available, LIDs will return "Desconhecido"');
+  
   assertEquals(
     extractPhoneNumber({
       from: { _serialized: '270953061822606@lid' }
     }),
     'Desconhecido',
-    'LID without alternative field returns Desconhecido (does not start with valid country code)'
+    'LID without alternative field returns Desconhecido (when ContactCollection not available)'
   );
   
   assertEquals(
@@ -547,7 +619,7 @@
       from: { _serialized: '143379161678071@lid' }
     }),
     'Desconhecido',
-    'LID from bug report (143379161678071) is rejected'
+    'LID from bug report (143379161678071) returns Desconhecido (when ContactCollection not available)'
   );
   
   // Test 8: Priority of fields (should check in order)
@@ -578,7 +650,7 @@
       from: { _serialized: '5511999998888@c.us@lid' }
     }),
     'Desconhecido',
-    'Source with @lid is skipped even if it has valid phone number'
+    'Source with @lid attempts resolution, returns Desconhecido if resolution fails'
   );
   
   // Test 10: Real-world scenario from the bug report
@@ -591,7 +663,45 @@
       sender: '5511999998888'
     }),
     '5511999998888',
-    'Real bug: LID everywhere, should find sender'
+    'Real bug: LID everywhere, should find sender as fallback'
+  );
+  
+  // Test 11: LID with alternative fields (NEW)
+  console.log('\n--- Test Group: LID with Alternative Fields (New Behavior) ---');
+  assertEquals(
+    extractPhoneNumber({
+      from: { _serialized: '143379161678071@lid' },
+      sender: '5521995800771'
+    }),
+    '5521995800771',
+    'LID in from, should use sender field instead'
+  );
+  
+  assertEquals(
+    extractPhoneNumber({
+      from: { _serialized: '143379161678071@lid' },
+      phoneNumber: '5521995800771'
+    }),
+    '5521995800771',
+    'LID in from, should use phoneNumber field instead'
+  );
+  
+  assertEquals(
+    extractPhoneNumber({
+      author: { _serialized: '143379161678071@lid' },
+      id: { remote: { user: '5521995800771' } }
+    }),
+    '5521995800771',
+    'LID in author, should use id.remote.user instead'
+  );
+  
+  assertEquals(
+    extractPhoneNumber({
+      from: { _serialized: '143379161678071@lid' },
+      chat: { id: { user: '5521995800771' } }
+    }),
+    '5521995800771',
+    'LID in from, should use chat.id.user instead'
   );
   
   // Summary

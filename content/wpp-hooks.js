@@ -334,6 +334,60 @@ window.whl_hooks_main = () => {
     }
 
     /**
+     * Resolve um LID (Local ID) para o número de telefone real
+     * Busca no ContactCollection do WhatsApp
+     * @param {string} lid - O LID a ser resolvido (ex: '143379161678071')
+     * @returns {string|null} - O número de telefone ou null se não encontrado
+     */
+    function resolveLidToPhone(lid) {
+        if (!lid) return null;
+        
+        // Limpar o LID usando o regex padrão
+        const cleanLid = String(lid).replace(WHATSAPP_SUFFIXES_REGEX, '');
+        
+        try {
+            const CC = require('WAWebContactCollection');
+            
+            // Método 1: Buscar diretamente pelo LID
+            const contact = CC.ContactCollection.get(cleanLid + '@lid');
+            if (contact && contact.phoneNumber) {
+                const phone = contact.phoneNumber._serialized || contact.phoneNumber.user;
+                if (phone) {
+                    const cleanPhone = String(phone).replace(WHATSAPP_SUFFIXES_REGEX, '');
+                    // Validar se é um número válido
+                    if (/^\d{10,15}$/.test(cleanPhone)) {
+                        console.log('[WHL] LID resolvido:', cleanLid, '→', cleanPhone);
+                        return cleanPhone;
+                    }
+                }
+            }
+            
+            // Método 2: Buscar na lista de contatos
+            const contacts = CC.ContactCollection.getModelsArray() || [];
+            const found = contacts.find(c => 
+                c.id.user === cleanLid || 
+                c.id._serialized === cleanLid + '@lid'
+            );
+            
+            if (found && found.phoneNumber) {
+                const phone = found.phoneNumber._serialized || found.phoneNumber.user;
+                if (phone) {
+                    const cleanPhone = String(phone).replace(WHATSAPP_SUFFIXES_REGEX, '');
+                    if (/^\d{10,15}$/.test(cleanPhone)) {
+                        console.log('[WHL] LID resolvido via busca:', cleanLid, '→', cleanPhone);
+                        return cleanPhone;
+                    }
+                }
+            }
+            
+        } catch(e) {
+            console.warn('[WHL] Erro ao resolver LID:', e.message);
+        }
+        
+        return null;
+    }
+
+    /**
      * Extrai número de telefone de um objeto de mensagem do WhatsApp
      * Busca em múltiplos campos e formata corretamente
      * @param {Object} message - Objeto de mensagem do WhatsApp
@@ -359,12 +413,26 @@ window.whl_hooks_main = () => {
             message?.id?.participant?.user
         ];
         
+        // Coletar LIDs encontrados para fallback
+        const foundLids = [];
+        
         for (const src of sources) {
             if (!src) continue;
             let s = String(src).trim();
             
-            // Skip LID sources entirely (before removing suffixes)
-            if (s.includes('@lid')) continue;
+            // Se é um LID, tentar resolver para número real
+            if (s.includes('@lid')) {
+                const resolved = resolveLidToPhone(s);
+                if (resolved) {
+                    return resolved;
+                }
+                // Coletar LID para fallback
+                const lidMatch = s.match(/(\d{10,15})@lid/);
+                if (lidMatch) {
+                    foundLids.push(lidMatch[1]);
+                }
+                continue; // Pular este source se não conseguir resolver
+            }
             
             // Remove TODOS os sufixos do WhatsApp usando regex constante
             s = s.replace(WHATSAPP_SUFFIXES_REGEX, '');
@@ -378,20 +446,15 @@ window.whl_hooks_main = () => {
             }
         }
         
-        // Fallback: retorna o que tiver, limpo
-        let fallbackSrc = message?.author?._serialized || 
-                          message?.from?._serialized || 
-                          message?.id?.remote?._serialized || 
-                          message?.from?.user || '';
-        
-        // Skip fallback if it's a LID
-        if (String(fallbackSrc).includes('@lid')) {
-            return 'Desconhecido';
+        // Fallback: tentar resolver LIDs coletados
+        for (const lid of foundLids) {
+            const resolved = resolveLidToPhone(lid);
+            if (resolved) {
+                return resolved;
+            }
         }
         
-        let fallback = String(fallbackSrc).replace(WHATSAPP_SUFFIXES_REGEX, '');
-        
-        return fallback || 'Desconhecido';
+        return 'Desconhecido';
     }
 
     // PR #76 ULTRA: Resolução de LID ULTRA (7 campos + 5 variações de ID)
