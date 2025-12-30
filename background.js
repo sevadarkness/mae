@@ -568,10 +568,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Enable it when user returns to WhatsApp Web
 
 // Helper function to check if URL is WhatsApp Web
+// Note: WhatsApp Web only uses web.whatsapp.com (no regional subdomains)
+// If WhatsApp introduces regional domains in the future, update this function
 function isWhatsAppWebURL(url) {
   if (!url) return false;
   try {
     const urlObj = new URL(url);
+    // Check for exact match - WhatsApp Web doesn't use subdomains
     return urlObj.hostname === 'web.whatsapp.com' && urlObj.protocol === 'https:';
   } catch (e) {
     return false;

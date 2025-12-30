@@ -3120,6 +3120,23 @@
    * Enviar mensagem usando Input + Enter
    * Este é o método TESTADO e CONFIRMADO FUNCIONANDO pelo usuário
    */
+  // Constants for WhatsApp error detection (multi-language support)
+  const WHATSAPP_ERROR_PATTERNS = [
+    'inválido',
+    'invalid',
+    'não existe',
+    "doesn't exist",
+    'não encontrado',
+    'not found',
+    'no existe',      // Spanish
+    'n\'existe pas',  // French
+    'nicht gefunden', // German
+    'non trovato',    // Italian
+    'не найден',      // Russian
+    'não está',       // Portuguese variant
+    'not available'   // English variant
+  ];
+  
   async function sendMessageViaInput(phone, text) {
     console.log(`[WHL] 📨 Enviando via Input + Enter para: ${phone}`);
     
@@ -3143,15 +3160,19 @@
           const invalidPhonePopup = document.querySelector('[data-testid="phone-invalid-popup"]');
           const alertDialog = document.querySelector('[role="alert"]');
           
+          // Helper function to check if text contains error patterns
+          const containsErrorPattern = (text) => {
+            if (!text) return false;
+            const lowerText = text.toLowerCase();
+            return WHATSAPP_ERROR_PATTERNS.some(pattern => 
+              lowerText.includes(pattern.toLowerCase())
+            );
+          };
+          
           // Verificar texto de erro nos popups
           if (errorPopup) {
             const errorText = errorPopup.textContent || '';
-            if (errorText.includes('inválido') || 
-                errorText.includes('invalid') || 
-                errorText.includes('não existe') ||
-                errorText.includes("doesn't exist") ||
-                errorText.includes('não encontrado') ||
-                errorText.includes('not found')) {
+            if (containsErrorPattern(errorText)) {
               console.error('[WHL] ❌ Número inválido detectado no popup');
               resolve({ success: false, error: 'Número inexistente', errorType: 'INVALID_NUMBER' });
               return;
@@ -3166,10 +3187,7 @@
           
           if (alertDialog) {
             const alertText = alertDialog.textContent || '';
-            if (alertText.includes('inválido') || 
-                alertText.includes('invalid') ||
-                alertText.includes('não existe') ||
-                alertText.includes("doesn't exist")) {
+            if (containsErrorPattern(alertText)) {
               console.error('[WHL] ❌ Alert de número inválido detectado');
               resolve({ success: false, error: 'Número inexistente', errorType: 'INVALID_NUMBER' });
               return;
@@ -3196,6 +3214,9 @@
       if (!result.success) {
         return result;
       }
+      
+      // Wait for chat to fully load before validation
+      await new Promise(r => setTimeout(r, 1000));
     }
     
     // BUG FIX 1: Validar que o chat aberto corresponde ao número esperado
