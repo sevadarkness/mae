@@ -355,9 +355,6 @@ class PopupController {
         // History elements
         this.historyList = document.getElementById('historyList');
         this.historyStats = document.getElementById('historyStats');
-        
-        // Tip bubble
-        this.tipBubble = document.getElementById('tipBubble');
     }
 
     // ========================================
@@ -593,7 +590,6 @@ class PopupController {
                 this.goToStep(2);
                 this.setLoading(this.btnLoadGroups, false);
                 this.hideStatus();
-                this.hideTipBubble();
                 return;
             }
 
@@ -653,7 +649,6 @@ class PopupController {
                 this.updateStats();
                 this.setFilter('all');
                 this.goToStep(2);
-                this.hideTipBubble();
                 this.hideReconnectTip();
             } else {
                 throw new Error(response?.error || 'Não foi possível carregar os grupos');
@@ -664,21 +659,6 @@ class PopupController {
         } finally {
             this.setLoading(this.btnLoadGroups, false);
             this.hideStatus();
-        }
-    }
-
-    // ========================================
-    // TIP BUBBLE
-    // ========================================
-    hideTipBubble() {
-        if (this.tipBubble) {
-            this.tipBubble.classList.add('hidden');
-        }
-    }
-
-    showTipBubble() {
-        if (this.tipBubble) {
-            this.tipBubble.classList.remove('hidden');
         }
     }
 
@@ -1499,9 +1479,6 @@ class PopupController {
             this.membersVirtualList.destroy();
             this.membersVirtualList = null;
         }
-
-        // Mostrar tip bubble novamente
-        this.showTipBubble();
 
         this.goToStep(1);
 
