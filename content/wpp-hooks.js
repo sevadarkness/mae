@@ -226,6 +226,9 @@ window.whl_hooks_main = () => {
         '998'   // Uzbekistan
     ];
     
+    // Sorted country codes (longest first) for efficient prefix matching
+    const SORTED_COUNTRY_CODES = VALID_COUNTRY_CODES.slice().sort((a, b) => b.length - a.length);
+    
     // ===== HELPER FUNCTIONS FOR GROUP MEMBER EXTRACTION =====
     function safeRequire(name) {
         try {
@@ -289,7 +292,13 @@ window.whl_hooks_main = () => {
         return null;
     }
 
-    // PR #76 ULTRA: Validação de telefone melhorada
+    /**
+     * PR #76 ULTRA: Validação de telefone melhorada
+     * Validação básica usada em outras partes do sistema
+     * Verifica comprimento e presença de caracteres especiais LID
+     * @param {string} num - Número a ser validado
+     * @returns {boolean} - true se válido, false caso contrário
+     */
     function isValidPhone(num) {
         if (!num) return false;
         const clean = String(num).replace(/\D/g, '');
@@ -305,6 +314,8 @@ window.whl_hooks_main = () => {
 
     /**
      * Valida se um número de telefone começa com um código de país válido
+     * Usado especificamente para validar números extraídos de mensagens WhatsApp
+     * e rejeitar LIDs (identificadores internos do WhatsApp)
      * @param {string} digits - String contendo apenas dígitos
      * @returns {boolean} - true se o número é válido, false caso contrário
      */
@@ -312,10 +323,8 @@ window.whl_hooks_main = () => {
         if (!digits || digits.length < 10 || digits.length > 15) return false;
         
         // Verificar se começa com código de país válido
-        // Ordenar por comprimento decrescente para match mais específico primeiro
-        const sortedCodes = VALID_COUNTRY_CODES.slice().sort((a, b) => b.length - a.length);
-        
-        for (const code of sortedCodes) {
+        // Usa códigos pré-ordenados por comprimento para match mais específico primeiro
+        for (const code of SORTED_COUNTRY_CODES) {
             if (digits.startsWith(code)) {
                 return true;
             }

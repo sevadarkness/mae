@@ -253,6 +253,9 @@
     '998'   // Uzbekistan
   ];
   
+  // Sorted country codes (longest first) for efficient prefix matching
+  const SORTED_COUNTRY_CODES = VALID_COUNTRY_CODES.slice().sort((a, b) => b.length - a.length);
+  
   /**
    * Valida se um número de telefone começa com um código de país válido
    * @param {string} digits - String contendo apenas dígitos
@@ -262,10 +265,8 @@
     if (!digits || digits.length < 10 || digits.length > 15) return false;
     
     // Verificar se começa com código de país válido
-    // Ordenar por comprimento decrescente para match mais específico primeiro
-    const sortedCodes = VALID_COUNTRY_CODES.slice().sort((a, b) => b.length - a.length);
-    
-    for (const code of sortedCodes) {
+    // Usa códigos pré-ordenados por comprimento para match mais específico primeiro
+    for (const code of SORTED_COUNTRY_CODES) {
       if (digits.startsWith(code)) {
         return true;
       }
