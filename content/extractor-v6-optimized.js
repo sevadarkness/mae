@@ -892,6 +892,21 @@ const WhatsAppExtractor = {
         this.log('▶️ Extração retomada');
     },
 
+    // Delegate to inject.js API for group listing
+    async getGroups(includeArchived = true) {
+        this.log('⚠️ getGroups() chamado no WhatsAppExtractor - delegando para __waExtractorAPI');
+        
+        // This method exists for compatibility but delegates to the inject.js API
+        if (window.__waExtractorAPI && typeof window.__waExtractorAPI.getGroups === 'function') {
+            return window.__waExtractorAPI.getGroups({ includeArchived });
+        }
+        
+        return { 
+            success: false, 
+            error: 'API de grupos não disponível. Recarregue a página.' 
+        };
+    },
+
     debugDOM() {
         console.log('=== 🔍 DEBUG DOM v6.0.7 ===');
 
