@@ -50,14 +50,26 @@
                     if (response && response.success) {
                         console.log(`[TopPanel] Side panel opened successfully for view: ${view}`);
                     } else {
+                        // BUG FIX 2: Fallback to opening in new window
                         console.warn('[TopPanel] Failed to open side panel:', response?.error || 'Unknown error');
+                        console.log('[TopPanel] Opening sidepanel in new window as fallback');
+                        const sidepanelUrl = chrome.runtime.getURL('sidepanel.html') + '?view=' + view;
+                        window.open(sidepanelUrl, 'whl_sidepanel', 'width=420,height=700,left=100,top=100');
                     }
                 })
                 .catch((err) => {
+                    // BUG FIX 2: Fallback to opening in new window
                     console.warn('[TopPanel] Error opening side panel:', err);
+                    console.log('[TopPanel] Opening sidepanel in new window as fallback');
+                    const sidepanelUrl = chrome.runtime.getURL('sidepanel.html') + '?view=' + view;
+                    window.open(sidepanelUrl, 'whl_sidepanel', 'width=420,height=700,left=100,top=100');
                 });
         } catch (e) {
+            // BUG FIX 2: Fallback to opening in new window
             console.warn('[TopPanel] Exception in openSidePanel:', e);
+            console.log('[TopPanel] Opening sidepanel in new window as fallback');
+            const sidepanelUrl = chrome.runtime.getURL('sidepanel.html') + '?view=' + view;
+            window.open(sidepanelUrl, 'whl_sidepanel', 'width=420,height=700,left=100,top=100');
         }
     }
 
