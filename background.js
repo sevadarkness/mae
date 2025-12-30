@@ -144,7 +144,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     // UI routing (Top Panel -> Side Panel)
     WHL_OPEN_SIDE_PANEL_VIEW: handleOpenSidePanelView,
-    WHL_SET_SIDE_PANEL_ENABLED: handleSetSidePanelEnabled
+    WHL_SET_SIDE_PANEL_ENABLED: handleSetSidePanelEnabled,
+    
+    // Open side panel (from popup)
+    openSidePanel: handleOpenSidePanel
   };
   
   const handler = handlers[message.action];
@@ -293,6 +296,22 @@ async function handleSetSidePanelEnabled(message, sender, sendResponse) {
     }
 
     sendResponse({ success: true, enabled });
+  } catch (e) {
+    sendResponse({ success: false, error: e?.message || String(e) });
+  }
+}
+
+
+// ===== OPEN SIDE PANEL HANDLER (from popup) =====
+async function handleOpenSidePanel(message, sender, sendResponse) {
+  try {
+    const tabId = message.tabId || sender?.tab?.id;
+    if (chrome.sidePanel && chrome.sidePanel.open && tabId) {
+      await chrome.sidePanel.open({ tabId });
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ success: false, error: 'sidePanel.open indisponível' });
+    }
   } catch (e) {
     sendResponse({ success: false, error: e?.message || String(e) });
   }
@@ -549,26 +568,6 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   }
 });
 
-
-// ===== FUSION: open side panel on demand (from popup) =====
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.action === 'openSidePanel') {
-    (async () => {
-      try {
-        const tabId = message.tabId || sender?.tab?.id;
-        if (chrome.sidePanel && chrome.sidePanel.open && tabId) {
-          await chrome.sidePanel.open({ tabId });
-          sendResponse({ success: true });
-        } else {
-          sendResponse({ success: false, error: 'sidePanel.open indisponível' });
-        }
-      } catch (e) {
-        sendResponse({ success: false, error: e?.message || String(e) });
-      }
-    })();
-    return true;
-  }
-});
 
 // ===== BUG FIX 3: Side Panel Tab Management =====
 // Disable side panel when user navigates away from WhatsApp Web

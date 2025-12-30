@@ -68,39 +68,14 @@ class NotificationSystem {
     }
   }
 
-  /**
-   * Solicita permissão para notificações
-   */
-  async requestPermission() {
-    if (!('Notification' in window)) {
-      console.warn('[Notifications] Notificações não suportadas neste navegador');
-      return false;
-    }
-    
-    if (Notification.permission === 'granted') {
-      return true;
-    }
-    
-    if (Notification.permission === 'denied') {
-      console.warn('[Notifications] Permissão de notificações negada');
-      return false;
-    }
-    
-    try {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    } catch (error) {
-      console.error('[Notifications] Erro ao solicitar permissão:', error);
-      return false;
-    }
-  }
+
 
   /**
    * Envia uma notificação
    * @param {string} title - Título da notificação
    * @param {string} body - Corpo da notificação
    * @param {Object} options - Opções adicionais
-   * @returns {Promise<Notification>} - Notificação criada
+   * @returns {Promise<string>} - ID da notificação criada
    */
   async notify(title, body, options = {}) {
     if (!this.enabled) {
@@ -108,48 +83,31 @@ class NotificationSystem {
       return null;
     }
     
-    if (!('Notification' in window)) {
-      console.warn('[Notifications] Notificações não suportadas');
-      return null;
-    }
-    
-    if (Notification.permission !== 'granted') {
-      const granted = await this.requestPermission();
-      if (!granted) {
-        console.warn('[Notifications] Permissão de notificações não concedida');
-        return null;
-      }
-    }
-    
     try {
-      // Criar notificação
-      const notification = new Notification(title, {
-        body: body,
-        icon: chrome.runtime ? chrome.runtime.getURL('icons/128.png') : '/icons/128.png',
-        badge: chrome.runtime ? chrome.runtime.getURL('icons/48.png') : '/icons/48.png',
-        silent: !this.soundEnabled,
-        requireInteraction: options.requireInteraction || false,
-        tag: options.tag || 'whl-notification',
-        ...options
+      const notificationId = options.tag || `whl-${Date.now()}`;
+      
+      await chrome.notifications.create(notificationId, {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icons/128.png'),
+        title: title,
+        message: body,
+        priority: 2,
+        requireInteraction: options.requireInteraction || false
       });
       
-      // Auto-fechar após 5 segundos (se não for requireInteraction)
+      // Auto-fechar após duração especificada
       if (!options.requireInteraction) {
         setTimeout(() => {
-          try {
-            notification.close();
-          } catch (e) {
-            // Notificação já foi fechada
-          }
+          chrome.notifications.clear(notificationId);
         }, options.duration || 5000);
       }
       
-      // Tocar som (se habilitado)
+      // Tocar som se habilitado
       if (this.soundEnabled && options.sound) {
         this.playSound(options.soundType || 'default');
       }
       
-      return notification;
+      return notificationId;
     } catch (error) {
       console.error('[Notifications] Erro ao criar notificação:', error);
       return null;
@@ -343,7 +301,7 @@ class NotificationSystem {
     return {
       enabled: this.enabled,
       soundEnabled: this.soundEnabled,
-      permission: typeof Notification !== 'undefined' ? Notification.permission : 'not-supported'
+      permission: 'granted' // chrome.notifications sempre tem permissão via manifest
     };
   }
 
