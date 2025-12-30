@@ -898,13 +898,22 @@ const WhatsAppExtractor = {
         
         // This method exists for compatibility but delegates to the inject.js API
         if (window.__waExtractorAPI && typeof window.__waExtractorAPI.getGroups === 'function') {
-            return window.__waExtractorAPI.getGroups({ includeArchived });
+            try {
+                // A API retorna diretamente, não uma Promise - então envolvemos em Promise.resolve()
+                const result = window.__waExtractorAPI.getGroups({ includeArchived });
+                return Promise.resolve(result);
+            } catch (e) {
+                return Promise.resolve({ 
+                    success: false, 
+                    error: e.message || 'Erro ao carregar grupos' 
+                });
+            }
         }
         
-        return { 
+        return Promise.resolve({ 
             success: false, 
             error: 'API de grupos não disponível. Recarregue a página.' 
-        };
+        });
     },
 
     debugDOM() {
