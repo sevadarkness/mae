@@ -6803,22 +6803,39 @@ if (cmd === 'GET_STATE') {
           }
           if (cmd === 'SET_SETTINGS') {
             const st = await getState();
+            
+            // Update state with new settings
+            if (typeof msg.delayMin === 'number') {
+                st.delayMin = Math.max(1, msg.delayMin);
+            }
+            if (typeof msg.delayMax === 'number') {
+                st.delayMax = Math.max(st.delayMin, msg.delayMax);
+            }
+            if (typeof msg.scheduleAt === 'string') {
+                st.scheduleAt = msg.scheduleAt;
+            }
+            
+            // Legacy settings (for backward compatibility)
             if (msg.continueOnError != null) st.continueOnError = !!msg.continueOnError;
             if (msg.typingEffect != null) st.typingEffect = !!msg.typingEffect;
             if (msg.typingDelayMs != null) st.typingDelayMs = Number(msg.typingDelayMs) || 0;
             if (msg.openInNewTab != null) st.openInNewTab = !!msg.openInNewTab;
-
-            // Optionally allow delay tweaks from config view
-            if (msg.delayMin != null) st.delayMin = Number(msg.delayMin) || st.delayMin;
-            if (msg.delayMax != null) st.delayMax = Number(msg.delayMax) || st.delayMax;
-            if (msg.scheduleAt != null) st.scheduleAt = String(msg.scheduleAt || '');
-
+            
+            // Sincronizar com os inputs internos se existirem
+            const dMinEl = document.getElementById('whlDelayMin');
+            const dMaxEl = document.getElementById('whlDelayMax');
+            const schedEl = document.getElementById('whlScheduleAt');
+            
+            if (dMinEl) dMinEl.value = String(st.delayMin);
+            if (dMaxEl) dMaxEl.value = String(st.delayMax);
+            if (schedEl) schedEl.value = st.scheduleAt || '';
+            
             // Keep the old central overlay hidden in the Fusion build
             st.panelVisible = false;
 
             await setState(st);
             await render();
-            sendResponse({ success: true, state: st });
+            sendResponse({ success: true, message: '✅ Configurações salvas com sucesso!' });
             return;
           }
 
