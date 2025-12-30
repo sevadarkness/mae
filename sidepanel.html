@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhatsApp Group Extractor v6.0.6 - Side Panel</title>
     <link rel="stylesheet" href="sidepanel.css">
+    <link rel="stylesheet" href="onboarding.css">
 </head>
 <body>
     <div class="container">
@@ -530,7 +531,26 @@
     <script src="utils/utils-optimized.js"></script>
     <script src="utils/storage.js"></script>
     <script src="utils/google-sheets-export.js"></script>
+    <script src="onboarding.js"></script>
     <script src="sidepanel.js"></script>
     <script src="sidepanel-router.js"></script>
+    
+    <!-- Initialize Onboarding -->
+    <script>
+        // Initialize onboarding system after page load
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof OnboardingSystem !== 'undefined') {
+                    const onboarding = new OnboardingSystem();
+                    if (onboarding.shouldShow()) {
+                        onboarding.start();
+                    }
+                    
+                    // Make it available globally for testing
+                    window.whlOnboarding = onboarding;
+                }
+            }, 500); // Small delay to ensure everything is loaded
+        });
+    </script>
 </body>
 </html>
