@@ -234,12 +234,9 @@ body {
     flex: 1;
 }
 
-.sp-row .sp-btn {
+.sp-row > .sp-btn {
     flex: 0 1 auto;
     min-width: fit-content;
-}
-
-.sp-row > .sp-btn {
     flex-shrink: 0;
 }
 
