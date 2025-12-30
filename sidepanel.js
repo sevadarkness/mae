@@ -725,31 +725,17 @@ class PopupController {
     // RECONNECT TIP
     // ========================================
     showReconnectTip() {
-        let tip = document.getElementById('reconnectTip');
-        if (!tip) {
-            tip = document.createElement('div');
-            tip.id = 'reconnectTip';
-            tip.className = 'tip-bubble tip-warning';
-            tip.innerHTML = `
-                <div class="tip-content">
-                    ⚠️ Conexão perdida. <strong>Clique no ícone da extensão</strong> (🧩) para reconectar.
-                </div>
-            `;
-            // Inserir após o tipBubble existente
-            const tipBubble = document.getElementById('tipBubble');
-            if (tipBubble && tipBubble.parentNode) {
-                tipBubble.parentNode.insertBefore(tip, tipBubble.nextSibling);
-            } else {
-                const step1 = document.getElementById('step1');
-                if (step1) step1.appendChild(tip);
-            }
+        const tip = document.getElementById('reconnectTip');
+        if (tip) {
+            tip.style.display = 'block';
         }
-        tip.style.display = 'block';
     }
 
     hideReconnectTip() {
         const tip = document.getElementById('reconnectTip');
-        if (tip) tip.style.display = 'none';
+        if (tip) {
+            tip.style.display = 'none';
+        }
     }
 
     // ========================================

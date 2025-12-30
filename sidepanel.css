@@ -697,20 +697,16 @@ body {
     line-height: 1.6;
 }
 
-/* Dica de reconexão */
-#reconnectTip {
+/* Dica de reconexão - warning variant */
+.tip-bubble.tip-warning {
     display: none;
     margin-top: 12px;
-    padding: 12px 16px;
     background: rgba(255, 193, 7, 0.15);
-    border: 1px solid rgba(255, 193, 7, 0.3);
-    border-radius: 12px;
-    font-size: 13px;
-    line-height: 1.5;
+    border-color: rgba(255, 193, 7, 0.3);
     color: #ffc107;
 }
 
-#reconnectTip strong {
+.tip-bubble.tip-warning strong {
     color: #fff;
 }
 
