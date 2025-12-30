@@ -372,6 +372,50 @@
       });
     }
 
+    // Excel import
+    const excelInput = $('sp_excel_file');
+    const excelBtn = $('sp_import_excel');
+    if (excelBtn && excelInput) {
+      excelBtn.addEventListener('click', () => excelInput.click());
+    }
+    if (excelInput) {
+      excelInput.addEventListener('change', async () => {
+        const file = excelInput.files?.[0];
+        if (!file) return;
+        
+        try {
+          $('sp_csv_hint').textContent = `📊 Importando: ${file.name} ...`;
+          const result = await window.ContactImporter.importFile(file);
+          
+          if (!result.success) {
+            $('sp_csv_hint').textContent = `❌ ${result.error}`;
+            return;
+          }
+          
+          // Add numbers to textarea
+          const numbersEl = $('sp_numbers');
+          if (numbersEl) {
+            const existing = (numbersEl.value || '').split('\n').filter(Boolean);
+            const combined = [...existing, ...result.numbers];
+            const unique = [...new Set(combined)];
+            numbersEl.value = unique.join('\n');
+          }
+          
+          // Show stats
+          const statsText = window.ContactImporter.formatStats(result.stats);
+          $('sp_csv_hint').textContent = `✅ ${file.name}: ${statsText}`;
+          
+          // Clear input
+          excelInput.value = '';
+          
+          // Sync with content script
+          principalScheduleSync();
+        } catch (e) {
+          $('sp_csv_hint').textContent = `❌ Erro: ${e.message || e}`;
+        }
+      });
+    }
+
     // Buttons
     $('sp_build_queue')?.addEventListener('click', principalBuildQueue);
     $('sp_clear_fields')?.addEventListener('click', principalClearFields);
@@ -1244,8 +1288,25 @@
     // Template management
     $('sp_save_template')?.addEventListener('click', saveTemplate);
     
+    // Scheduler management
+    $('sp_add_schedule')?.addEventListener('click', addSchedule);
+    
+    // Anti-Ban management
+    $('sp_save_antiban')?.addEventListener('click', saveAntiBanSettings);
+    $('sp_reset_daily_count')?.addEventListener('click', resetDailyCount);
+    
+    // Notification management
+    $('sp_enable_notifications')?.addEventListener('change', updateNotificationSettings);
+    $('sp_enable_sounds')?.addEventListener('change', updateNotificationSettings);
+    $('sp_test_notification')?.addEventListener('click', testNotification);
+    
     // Load templates list when config view opens
     loadTemplatesList();
+    
+    // Load advanced features data
+    loadSchedulesList();
+    loadAntiBanStats();
+    loadNotificationSettings();
   }
 
   async function configLoad() {
@@ -1537,6 +1598,298 @@
       console.error('[WHL] Erro ao carregar lista de templates:', e);
     }
   }
+
+  // ========= Scheduler Functions =========
+  async function addSchedule() {
+    const nameEl = $('sp_schedule_name');
+    const timeEl = $('sp_schedule_time');
+    const statusEl = $('sp_schedule_status');
+    
+    const name = (nameEl?.value || '').trim();
+    const time = timeEl?.value;
+    
+    if (!name) {
+      if (statusEl) statusEl.textContent = '⚠️ Informe o nome da campanha.';
+      return;
+    }
+    
+    if (!time) {
+      if (statusEl) statusEl.textContent = '⚠️ Informe o horário.';
+      return;
+    }
+    
+    if (statusEl) statusEl.textContent = '⏳ Agendando...';
+    
+    try {
+      // Get current queue and config
+      const resp = await motor('GET_STATE', { light: false });
+      const st = resp?.state || resp;
+      
+      if (!st.queue || st.queue.length === 0) {
+        if (statusEl) statusEl.textContent = '⚠️ Gere a fila primeiro.';
+        return;
+      }
+      
+      // Create schedule
+      const schedule = await window.schedulerManager.createSchedule({
+        name: name,
+        scheduledTime: time,
+        queue: st.queue,
+        config: {
+          message: st.message,
+          imageData: st.imageData,
+          delayMin: st.delayMin,
+          delayMax: st.delayMax
+        }
+      });
+      
+      // Clear inputs
+      if (nameEl) nameEl.value = '';
+      if (timeEl) timeEl.value = '';
+      
+      // Notify
+      if (window.notificationSystem) {
+        const scheduledDate = new Date(time);
+        await window.notificationSystem.scheduleCreated(
+          name,
+          scheduledDate.toLocaleString('pt-BR')
+        );
+      }
+      
+      if (statusEl) statusEl.textContent = `✅ Campanha "${name}" agendada!`;
+      
+      // Reload list
+      await loadSchedulesList();
+    } catch (e) {
+      if (statusEl) statusEl.textContent = `❌ ${e.message || e}`;
+    }
+  }
+  
+  async function loadSchedulesList() {
+    const listEl = $('sp_schedules_list');
+    if (!listEl || !window.schedulerManager) return;
+    
+    try {
+      const schedules = window.schedulerManager.getAllSchedules();
+      
+      if (schedules.length === 0) {
+        listEl.innerHTML = '<div style="padding:16px;text-align:center;opacity:0.7">Nenhuma campanha agendada.</div>';
+        return;
+      }
+      
+      let html = '<table style="width:100%"><thead><tr><th>Campanha</th><th>Horário</th><th>Status</th><th style="width:80px">Ações</th></tr></thead><tbody>';
+      
+      schedules.forEach(s => {
+        const formatted = window.schedulerManager.formatSchedule(s);
+        const statusIcon = s.status === 'pending' ? '⏳' : (s.status === 'running' ? '🚀' : (s.status === 'completed' ? '✅' : '❌'));
+        
+        html += `
+          <tr>
+            <td><strong>${escapeHtml(s.name)}</strong></td>
+            <td>
+              ${escapeHtml(formatted.scheduledTimeFormatted)}
+              ${formatted.timeRemaining ? `<br><small>(${escapeHtml(formatted.timeRemaining)})</small>` : ''}
+            </td>
+            <td>${statusIcon} ${escapeHtml(s.status)}</td>
+            <td>
+              <button class="sp-btn sp-btn-danger" data-delete-schedule="${s.id}" style="padding:4px 8px;font-size:11px">🗑️</button>
+            </td>
+          </tr>
+        `;
+      });
+      
+      html += '</tbody></table>';
+      listEl.innerHTML = html;
+      
+      // Add delete handlers
+      listEl.querySelectorAll('button[data-delete-schedule]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-delete-schedule');
+          const schedule = window.schedulerManager.getSchedule(id);
+          
+          if (!schedule || !confirm(`Excluir agendamento "${schedule.name}"?`)) return;
+          
+          try {
+            await window.schedulerManager.deleteSchedule(id);
+            $('sp_schedule_status').textContent = '✅ Agendamento excluído.';
+            await loadSchedulesList();
+          } catch (e) {
+            $('sp_schedule_status').textContent = `❌ ${e.message || e}`;
+          }
+        });
+      });
+    } catch (e) {
+      console.error('[WHL] Erro ao carregar agendamentos:', e);
+    }
+  }
+
+  // ========= Anti-Ban Functions =========
+  async function saveAntiBanSettings() {
+    const limitEl = $('sp_daily_limit');
+    const businessEl = $('sp_business_hours_only');
+    const statusEl = $('sp_antiban_status');
+    
+    if (statusEl) statusEl.textContent = '⏳ Salvando...';
+    
+    try {
+      const limit = parseInt(limitEl?.value || '200', 10);
+      const businessHours = businessEl?.checked || false;
+      
+      await window.antiBanSystem.setDailyLimit(limit);
+      await window.antiBanSystem.setBusinessHoursOnly(businessHours);
+      
+      if (statusEl) statusEl.textContent = '✅ Configurações salvas!';
+      
+      // Update display
+      await loadAntiBanStats();
+    } catch (e) {
+      if (statusEl) statusEl.textContent = `❌ ${e.message || e}`;
+    }
+  }
+  
+  async function resetDailyCount() {
+    if (!confirm('Resetar o contador de mensagens enviadas hoje?')) return;
+    
+    const statusEl = $('sp_antiban_status');
+    
+    try {
+      await window.antiBanSystem.resetDailyCount();
+      if (statusEl) statusEl.textContent = '✅ Contador resetado!';
+      await loadAntiBanStats();
+    } catch (e) {
+      if (statusEl) statusEl.textContent = `❌ ${e.message || e}`;
+    }
+  }
+  
+  async function loadAntiBanStats() {
+    if (!window.antiBanSystem) return;
+    
+    try {
+      const stats = await window.antiBanSystem.getStats();
+      
+      // Update UI
+      const sentEl = $('sp_sent_today');
+      const limitDisplayEl = $('sp_daily_limit_display');
+      const progressFillEl = $('sp_daily_progress_fill');
+      const limitInputEl = $('sp_daily_limit');
+      const businessEl = $('sp_business_hours_only');
+      
+      if (sentEl) sentEl.textContent = stats.sentToday;
+      if (limitDisplayEl) limitDisplayEl.textContent = stats.dailyLimit;
+      if (progressFillEl) {
+        progressFillEl.style.width = `${stats.percentage}%`;
+        
+        // Change color based on percentage
+        if (stats.percentage >= 100) {
+          progressFillEl.style.background = '#E53935'; // Red
+        } else if (stats.percentage >= 80) {
+          progressFillEl.style.background = '#FB8C00'; // Orange
+        } else {
+          progressFillEl.style.background = '#25D366'; // Green
+        }
+      }
+      if (limitInputEl) limitInputEl.value = stats.dailyLimit;
+      if (businessEl) businessEl.checked = stats.businessHoursOnly;
+    } catch (e) {
+      console.error('[WHL] Erro ao carregar stats anti-ban:', e);
+    }
+  }
+
+  // ========= Notification Functions =========
+  async function updateNotificationSettings() {
+    const enabledEl = $('sp_enable_notifications');
+    const soundsEl = $('sp_enable_sounds');
+    const statusEl = $('sp_notification_status');
+    
+    try {
+      const enabled = enabledEl?.checked !== false;
+      const sounds = soundsEl?.checked !== false;
+      
+      await window.notificationSystem.setEnabled(enabled);
+      await window.notificationSystem.setSoundEnabled(sounds);
+      
+      if (statusEl) statusEl.textContent = '✅ Configurações salvas!';
+      
+      // Clear status after 2 seconds
+      setTimeout(() => {
+        if (statusEl) statusEl.textContent = '';
+      }, 2000);
+    } catch (e) {
+      if (statusEl) statusEl.textContent = `❌ ${e.message || e}`;
+    }
+  }
+  
+  async function testNotification() {
+    const statusEl = $('sp_notification_status');
+    
+    try {
+      // Request permission if needed
+      const permission = await window.notificationSystem.requestPermission();
+      
+      if (!permission) {
+        if (statusEl) statusEl.textContent = '⚠️ Permissão de notificações negada.';
+        return;
+      }
+      
+      // Send test notification
+      await window.notificationSystem.test();
+      
+      if (statusEl) statusEl.textContent = '✅ Notificação enviada!';
+      
+      setTimeout(() => {
+        if (statusEl) statusEl.textContent = '';
+      }, 2000);
+    } catch (e) {
+      if (statusEl) statusEl.textContent = `❌ ${e.message || e}`;
+    }
+  }
+  
+  async function loadNotificationSettings() {
+    if (!window.notificationSystem) return;
+    
+    try {
+      const settings = window.notificationSystem.getSettings();
+      
+      const enabledEl = $('sp_enable_notifications');
+      const soundsEl = $('sp_enable_sounds');
+      
+      if (enabledEl) enabledEl.checked = settings.enabled;
+      if (soundsEl) soundsEl.checked = settings.soundEnabled;
+    } catch (e) {
+      console.error('[WHL] Erro ao carregar configurações de notificação:', e);
+    }
+  }
+
+  // ========= Scheduler Alarm Handler =========
+  // Listen for scheduled campaign alarms from background
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'SCHEDULE_ALARM_FIRED') {
+      (async () => {
+        try {
+          const scheduleId = message.scheduleId;
+          console.log('[WHL Router] Schedule alarm fired:', scheduleId);
+          
+          if (window.schedulerManager) {
+            await window.schedulerManager.executeSchedule(scheduleId);
+            
+            // Notify user
+            if (window.notificationSystem) {
+              const schedule = window.schedulerManager.getSchedule(scheduleId);
+              if (schedule) {
+                await window.notificationSystem.scheduleStarting(schedule.name);
+              }
+            }
+          }
+          
+          sendResponse({ success: true });
+        } catch (error) {
+          console.error('[WHL Router] Error executing scheduled campaign:', error);
+          sendResponse({ success: false, error: error.message });
+        }
+      })();
+      return true; // Will respond asynchronously
+    }
+  });
 
   // ========= Bootstrap =========
   document.addEventListener('DOMContentLoaded', loadCurrentView);

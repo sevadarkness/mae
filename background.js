@@ -662,3 +662,36 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
   }
 });
+
+// ===== SCHEDULER: Handle Alarms =====
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  try {
+    // Check if it's a scheduler alarm
+    if (alarm.name.startsWith('whl_schedule_')) {
+      const scheduleId = alarm.name.replace('whl_schedule_', '');
+      console.log('[WHL Background] Alarm fired for schedule:', scheduleId);
+      
+      // Send message to sidepanel to execute schedule
+      // Note: Since sidepanel might not be open, we'll handle this in background
+      chrome.runtime.sendMessage({
+        action: 'SCHEDULE_ALARM_FIRED',
+        scheduleId: scheduleId
+      }).catch(() => {
+        // Sidepanel is not open, that's okay
+        console.log('[WHL Background] Sidepanel not open for scheduled campaign');
+      });
+      
+      // Try to open sidepanel to execute the schedule
+      try {
+        const tabs = await chrome.tabs.query({ url: 'https://web.whatsapp.com/*' });
+        if (tabs.length > 0) {
+          await chrome.sidePanel.open({ tabId: tabs[0].id });
+        }
+      } catch (e) {
+        console.warn('[WHL Background] Could not open sidepanel for scheduled campaign:', e);
+      }
+    }
+  } catch (error) {
+    console.error('[WHL Background] Error handling alarm:', error);
+  }
+});
