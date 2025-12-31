@@ -79,6 +79,7 @@
         "icons/16.png",
         "icons/48.png",
         "utils/google-sheets-export.js",
+        "utils/media-handler.js",
         "utils/storage.js",
         "utils/utils-optimized.js"
       ],

@@ -3370,13 +3370,93 @@ window.whl_hooks_main = () => {
             
             downloadBackupFile(content, fileName, mimeType);
             
+            // Export media if requested
+            let mediaResults = null;
+            const exportMedia = settings.exportMedia;
+            const hasMediaToExport = exportMedia && (exportMedia.images || exportMedia.audios || exportMedia.docs);
+            
+            if (hasMediaToExport && window.MediaHandler) {
+                window.postMessage({
+                    type: 'WHL_BACKUP_PROGRESS',
+                    progress: 70,
+                    status: 'Exportando mídias...'
+                }, window.location.origin);
+                
+                try {
+                    // Filter messages to get only those with media
+                    const mediaMessages = messages.filter(m => {
+                        const type = m.type;
+                        return (type === 'image' && exportMedia.images) ||
+                               ((type === 'audio' || type === 'ptt') && exportMedia.audios) ||
+                               (type === 'document' && exportMedia.docs);
+                    });
+                    
+                    if (mediaMessages.length > 0) {
+                        // Download and create ZIPs
+                        mediaResults = await window.MediaHandler.downloadMediaForExport(
+                            mediaMessages,
+                            {
+                                exportImages: exportMedia.images,
+                                exportAudios: exportMedia.audios,
+                                exportDocs: exportMedia.docs
+                            },
+                            (progress) => {
+                                // Report media progress
+                                if (progress.type === 'media') {
+                                    window.postMessage({
+                                        type: 'WHL_BACKUP_MEDIA_PROGRESS',
+                                        mediaType: progress.groupName,
+                                        current: progress.current,
+                                        total: progress.total,
+                                        failed: progress.failed,
+                                        progress: Math.round((progress.current / progress.total) * 100)
+                                    }, window.location.origin);
+                                } else if (progress.type === 'zip') {
+                                    window.postMessage({
+                                        type: 'WHL_BACKUP_ZIP_PROGRESS',
+                                        zipName: progress.groupName,
+                                        status: progress.status
+                                    }, window.location.origin);
+                                }
+                            }
+                        );
+                        
+                        // Download each ZIP file
+                        if (mediaResults.images) {
+                            downloadBackupFile(mediaResults.images.blob, 
+                                             `${chatName}_images_${Date.now()}.zip`, 
+                                             'application/zip');
+                        }
+                        if (mediaResults.audios) {
+                            downloadBackupFile(mediaResults.audios.blob, 
+                                             `${chatName}_audios_${Date.now()}.zip`, 
+                                             'application/zip');
+                        }
+                        if (mediaResults.documents) {
+                            downloadBackupFile(mediaResults.documents.blob, 
+                                             `${chatName}_documents_${Date.now()}.zip`, 
+                                             'application/zip');
+                        }
+                    }
+                } catch (mediaError) {
+                    console.error('[WHL Backup] Media export error:', mediaError);
+                    // Continue even if media export fails
+                }
+            }
+            
             window.postMessage({
                 type: 'WHL_BACKUP_PROGRESS',
                 progress: 100,
                 status: 'Concluído!'
             }, window.location.origin);
             
-            return { success: true, fileName };
+            return { 
+                success: true, 
+                fileName,
+                mediaResults: mediaResults ? {
+                    stats: mediaResults.stats
+                } : null
+            };
         } catch (e) {
             console.error('[WHL Backup] Export error:', e);
             return { success: false, error: e.message };
