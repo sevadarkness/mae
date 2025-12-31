@@ -103,6 +103,10 @@
                             <span class="tab-icon">⚙️</span>
                             <span class="tab-label">Config</span>
                         </button>
+                        <button class="top-panel-tab" data-view="backup" title="Backup">
+                            <span class="tab-icon">💾</span>
+                            <span class="tab-label">Backup</span>
+                        </button>
                     </div>
                 </div>
                 <div class="top-panel-right">
