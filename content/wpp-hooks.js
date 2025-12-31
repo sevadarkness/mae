@@ -3316,6 +3316,15 @@ window.whl_hooks_main = () => {
      * Start backup export
      */
     async function startBackupExport(settings) {
+        // Progress constants for better maintainability
+        const PROGRESS = {
+            START: 10,
+            MESSAGES_LOADED: 60,
+            TEXT_READY: 75,
+            MEDIA_START: 80,
+            COMPLETE: 100
+        };
+        
         try {
             console.log('[WHL Backup] Starting export with settings:', settings);
             
@@ -3330,7 +3339,7 @@ window.whl_hooks_main = () => {
             // Load messages
             window.postMessage({
                 type: 'WHL_BACKUP_PROGRESS',
-                progress: 10,
+                progress: PROGRESS.START,
                 status: 'Carregando mensagens...',
                 currentCount: 0,
                 totalCount: settings.limit
@@ -3356,7 +3365,7 @@ window.whl_hooks_main = () => {
             // Generate file
             window.postMessage({
                 type: 'WHL_BACKUP_PROGRESS',
-                progress: 60,
+                progress: PROGRESS.MESSAGES_LOADED,
                 status: 'Gerando arquivo...',
                 currentCount: messages.length,
                 totalCount: messages.length
@@ -3400,7 +3409,7 @@ window.whl_hooks_main = () => {
             
             window.postMessage({
                 type: 'WHL_BACKUP_PROGRESS',
-                progress: 75,
+                progress: PROGRESS.TEXT_READY,
                 status: 'Arquivo de texto baixado.'
             }, window.location.origin);
             
@@ -3412,7 +3421,7 @@ window.whl_hooks_main = () => {
             if (hasMediaToExport && window.MediaHandler) {
                 window.postMessage({
                     type: 'WHL_BACKUP_PROGRESS',
-                    progress: 80,
+                    progress: PROGRESS.MEDIA_START,
                     status: 'Exportando mídias...'
                 }, window.location.origin);
                 
@@ -3480,7 +3489,7 @@ window.whl_hooks_main = () => {
             
             window.postMessage({
                 type: 'WHL_BACKUP_PROGRESS',
-                progress: 100,
+                progress: PROGRESS.COMPLETE,
                 status: 'Concluído!'
             }, window.location.origin);
             

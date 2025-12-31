@@ -21,11 +21,16 @@
         }
     };
     
-    // Use window.JSZip if available (from CDN in sidepanel), otherwise use stub that throws
-    const JSZip = window.JSZip || function() { 
+    // Use window.JSZip if available (from CDN in sidepanel), otherwise use constructor that throws
+    const JSZip = window.JSZip || function JSZipNotAvailable() {
         throw new Error('[MediaHandler] JSZip not available - ensure it is loaded from CDN');
     };
-    JSZip.prototype = window.JSZip?.prototype || {};
+    
+    // Ensure JSZip has proper prototype if using fallback
+    if (!window.JSZip) {
+        JSZipNotAvailable.prototype.file = function() { throw new Error('[MediaHandler] JSZip not available'); };
+        JSZipNotAvailable.prototype.generateAsync = function() { throw new Error('[MediaHandler] JSZip not available'); };
+    }
 
     // ===== CONSTANTS =====
     const CDNS = [
@@ -159,7 +164,9 @@
             // Derive IV and cipher key using HKDF
             const { iv, cipherKey } = await hkdfExpand(mediaKey, mediaType);
             
-            // Remove last 10 bytes (MAC) from encrypted data
+            // Remove last 10 bytes (MAC tag) from encrypted data
+            // WhatsApp media encryption uses HMAC-SHA256 for authentication
+            // The last 10 bytes contain the truncated MAC that must be removed before AES-CBC decryption
             const ciphertext = encryptedData.slice(0, -10);
             
             // Import cipher key
@@ -235,7 +242,14 @@
     async function downloadAndDecryptMedia(msg) {
         try {
             // Extract media info from message
-            const mediaType = msg.type || 'image';
+            const mediaType = msg.type;
+            
+            // Validate media type
+            const validTypes = Object.values(MEDIA_TYPES);
+            if (!mediaType || !validTypes.includes(mediaType)) {
+                throw new Error(`Invalid or unknown media type: ${mediaType}`);
+            }
+            
             const directPath = msg.directPath;
             const mediaKey = msg.mediaKey; // base64
             const mimetype = msg.mimetype || 'application/octet-stream';
