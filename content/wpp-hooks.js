@@ -3178,7 +3178,7 @@ window.whl_hooks_main = () => {
                     msgData.directPath = msgData.mediaData.directPath;
                     msgData.mediaKey = msgData.mediaData.mediaKey;
                     msgData.mimetype = msgData.mediaData.mimetype;
-                    msgData.t = msg.t || Math.floor(Date.now() / 1000);
+                    msgData.t = msg.t || Math.floor(Date.now() / 1000); // WhatsApp timestamp in seconds
                 }
                 
                 messages.push(msgData);

@@ -21,15 +21,15 @@
         }
     };
     
-    // Use window.JSZip if available (from CDN in sidepanel), otherwise use constructor that throws
+    // Use window.JSZip if available (from CDN in sidepanel), otherwise create fallback constructor
     const JSZip = window.JSZip || function JSZipNotAvailable() {
         throw new Error('[MediaHandler] JSZip not available - ensure it is loaded from CDN');
     };
     
     // Ensure JSZip has proper prototype if using fallback
     if (!window.JSZip) {
-        JSZipNotAvailable.prototype.file = function() { throw new Error('[MediaHandler] JSZip not available'); };
-        JSZipNotAvailable.prototype.generateAsync = function() { throw new Error('[MediaHandler] JSZip not available'); };
+        JSZip.prototype.file = function() { throw new Error('[MediaHandler] JSZip not available'); };
+        JSZip.prototype.generateAsync = function() { throw new Error('[MediaHandler] JSZip not available'); };
     }
 
     // ===== CONSTANTS =====
@@ -61,6 +61,13 @@
     // ===== UTILITY FUNCTIONS =====
     
     /**
+     * Get current timestamp in seconds (WhatsApp format)
+     */
+    function getTimestampSeconds() {
+        return Math.floor(Date.now() / 1000);
+    }
+    
+    /**
      * Convert base64 string to Uint8Array
      */
     function base64ToUint8Array(base64) {
@@ -71,18 +78,6 @@
             bytes[i] = binary.charCodeAt(i);
         }
         return bytes;
-    }
-
-    /**
-     * Convert Uint8Array to base64 string
-     */
-    function uint8ArrayToBase64(bytes) {
-        let binary = '';
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        return btoa(binary);
     }
 
     // ===== CRYPTOGRAPHIC FUNCTIONS =====
@@ -271,7 +266,7 @@
             );
             
             // Generate filename
-            const timestamp = msg.t || Math.floor(Date.now() / 1000); // Ensure seconds
+            const timestamp = msg.t || getTimestampSeconds();
             const ext = getExtensionFromMime(mimetype);
             const filename = `${mediaType}_${timestamp}${ext}`;
             
@@ -457,6 +452,9 @@
 
     // ===== PUBLIC API =====
     window.MediaHandler = {
+        // Utility functions
+        getTimestampSeconds,
+        
         // Crypto functions
         hkdfExpand,
         decryptMedia,
