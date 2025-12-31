@@ -597,13 +597,155 @@
             <!-- ============ VIEW: BACKUP ============ -->
             <section id="whlViewBackup" class="whl-view hidden">
   <div class="sp-card">
-    <div class="sp-title">💾 Backup</div>
-    <div class="sp-muted">Funcionalidades de backup em desenvolvimento...</div>
+    <div class="sp-title">💾 Backup de Conversas</div>
+    <div class="sp-muted">Exporte conversas do WhatsApp em múltiplos formatos (HTML, CSV, JSON, TXT) com suporte a mídias.</div>
     
-    <!-- Placeholder para futura integração -->
-    <div id="backupContainer">
-      <div class="backup-status">
-        <p>🔧 Em breve: Backup completo de conversas</p>
+    <!-- Seletor de Contatos -->
+    <div class="backup-section">
+      <label class="sp-label">📱 Selecionar Conversa</label>
+      <div class="sp-row" style="margin-top:8px">
+        <button id="backup_load_contacts" class="sp-btn sp-btn-primary" style="flex:1">📂 Carregar Chats</button>
+        <button id="backup_refresh_contacts" class="sp-btn sp-btn-secondary" style="display:none">🔄 Atualizar</button>
+      </div>
+      
+      <!-- Campo de busca -->
+      <div style="position:relative;margin-top:8px;display:none" id="backup_search_container">
+        <input id="backup_search" type="text" class="sp-input" placeholder="🔍 Buscar chat..." />
+      </div>
+      
+      <!-- Lista de contatos -->
+      <div id="backup_contacts_list" class="backup-contacts-list" style="display:none"></div>
+      
+      <!-- Card do chat selecionado -->
+      <div id="backup_selected_chat" class="backup-selected-chat" style="display:none">
+        <div class="backup-chat-icon" id="backup_chat_icon">👤</div>
+        <div class="backup-chat-info">
+          <div class="backup-chat-name" id="backup_chat_name">-</div>
+          <div class="backup-chat-type" id="backup_chat_type">-</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Opções de Exportação -->
+    <div class="backup-section" id="backup_options_section" style="display:none">
+      <label class="sp-label">⚙️ Opções de Exportação</label>
+      
+      <!-- Formato -->
+      <div style="margin-top:8px">
+        <label class="sp-muted" style="font-size:11px">Formato:</label>
+        <select id="backup_format" class="sp-input">
+          <option value="html">📄 HTML (Visual)</option>
+          <option value="csv">📊 CSV (Planilha)</option>
+          <option value="json">📋 JSON (Dados)</option>
+          <option value="txt">📝 TXT (Texto)</option>
+        </select>
+      </div>
+      
+      <!-- Limite de mensagens -->
+      <div style="margin-top:8px">
+        <label class="sp-muted" style="font-size:11px">Limite de mensagens:</label>
+        <select id="backup_limit" class="sp-input">
+          <option value="1000">1.000 mensagens</option>
+          <option value="5000">5.000 mensagens</option>
+          <option value="10000" selected>10.000 mensagens</option>
+          <option value="50000">50.000 mensagens</option>
+          <option value="100000">100.000 mensagens</option>
+          <option value="all">Todas as mensagens</option>
+        </select>
+      </div>
+      
+      <!-- Período -->
+      <div style="margin-top:8px">
+        <label class="sp-muted" style="font-size:11px">Período (opcional):</label>
+        <div class="sp-row" style="gap:8px">
+          <input id="backup_date_from" type="date" class="sp-input" placeholder="De" style="flex:1" />
+          <input id="backup_date_to" type="date" class="sp-input" placeholder="Até" style="flex:1" />
+        </div>
+      </div>
+      
+      <!-- Checkboxes -->
+      <div style="margin-top:8px">
+        <label class="sp-checkbox">
+          <input type="checkbox" id="backup_include_date" checked>
+          <span>Incluir data/hora</span>
+        </label>
+        <label class="sp-checkbox">
+          <input type="checkbox" id="backup_include_sender" checked>
+          <span>Incluir remetente</span>
+        </label>
+      </div>
+      
+      <!-- Exportar Mídias -->
+      <div style="margin-top:12px">
+        <label class="sp-muted" style="font-size:11px">📎 Exportar Mídias (opcional):</label>
+        <label class="sp-checkbox">
+          <input type="checkbox" id="backup_export_images">
+          <span>🖼️ Imagens</span>
+        </label>
+        <label class="sp-checkbox">
+          <input type="checkbox" id="backup_export_audios">
+          <span>🎵 Áudios</span>
+        </label>
+        <label class="sp-checkbox">
+          <input type="checkbox" id="backup_export_docs">
+          <span>📄 Documentos</span>
+        </label>
+      </div>
+    </div>
+    
+    <!-- Botões de ação -->
+    <div class="sp-row" style="margin-top:12px" id="backup_action_buttons" style="display:none">
+      <button id="backup_start" class="sp-btn sp-btn-primary" style="flex:1">▶️ Exportar Conversa</button>
+      <button id="backup_cancel" class="sp-btn sp-btn-danger" style="flex:1;display:none">⏹️ Cancelar</button>
+    </div>
+    
+    <!-- Status e Progresso -->
+    <div id="backup_status" class="sp-status" style="margin-top:8px"></div>
+    
+    <!-- Barra de progresso principal -->
+    <div id="backup_progress_container" style="display:none;margin-top:10px">
+      <div class="sp-muted" id="backup_progress_text">0%</div>
+      <div style="height:10px;background:rgba(255,255,255,0.10);border-radius:999px;overflow:hidden">
+        <div id="backup_progress_fill" style="height:100%;width:0%;background:rgba(37,211,102,0.85);transition:width 0.3s"></div>
+      </div>
+      <div class="sp-muted" id="backup_progress_status" style="margin-top:6px;font-size:11px">Iniciando...</div>
+    </div>
+    
+    <!-- Progresso de Mídias -->
+    <div id="backup_media_progress_container" class="backup-media-progress-container" style="display:none;margin-top:12px">
+      <div class="sp-muted" style="font-size:11px;margin-bottom:6px">📎 Download de Mídias:</div>
+      
+      <!-- Imagens -->
+      <div class="backup-media-progress-item">
+        <div class="backup-media-progress-label">
+          <span>🖼️ Imagens</span>
+          <span id="backup_images_count">0/0</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,0.10);border-radius:999px;overflow:hidden">
+          <div id="backup_images_progress" style="height:100%;width:0%;background:rgba(37,211,102,0.85);transition:width 0.3s"></div>
+        </div>
+      </div>
+      
+      <!-- Áudios -->
+      <div class="backup-media-progress-item">
+        <div class="backup-media-progress-label">
+          <span>🎵 Áudios</span>
+          <span id="backup_audios_count">0/0</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,0.10);border-radius:999px;overflow:hidden">
+          <div id="backup_audios_progress" style="height:100%;width:0%;background:rgba(37,211,102,0.85);transition:width 0.3s"></div>
+        </div>
+      </div>
+      
+      <!-- Documentos -->
+      <div class="backup-media-progress-item">
+        <div class="backup-media-progress-label">
+          <span>📄 Documentos</span>
+          <span id="backup_docs_count">0/0</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,0.10);border-radius:999px;overflow:hidden">
+          <div id="backup_docs_progress" style="height:100%;width:0%;background:rgba(37,211,102,0.85);transition:width 0.3s"></div>
+        </div>
       </div>
     </div>
   </div>

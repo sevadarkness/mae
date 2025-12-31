@@ -2059,3 +2059,161 @@ body {
   transform: translateY(-1px);
 }
 
+
+/* ========================================
+   BACKUP VIEW STYLES
+======================================== */
+.backup-section {
+  margin-top: 12px;
+}
+
+.backup-contacts-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.10);
+  margin-top: 8px;
+}
+
+.backup-contact-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.backup-contact-item:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.backup-contact-item:last-child {
+  border-bottom: none;
+}
+
+.backup-contact-item.selected {
+  background: rgba(37,211,102,0.15);
+  border-left: 3px solid #25D366;
+}
+
+.backup-contact-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.backup-contact-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.backup-contact-name {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backup-contact-type {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.backup-selected-chat {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid rgba(37,211,102,0.3);
+  border-radius: 8px;
+  background: rgba(37,211,102,0.05);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.backup-chat-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.backup-chat-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.backup-chat-name {
+  font-weight: 800;
+  font-size: 14px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backup-chat-type {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.backup-media-progress-container {
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.10);
+}
+
+.backup-media-progress-item {
+  margin-bottom: 8px;
+}
+
+.backup-media-progress-item:last-child {
+  margin-bottom: 0;
+}
+
+.backup-media-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.download-btn {
+  background: rgba(37,211,102,0.2);
+  border: 1px solid rgba(37,211,102,0.3);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.download-btn:hover {
+  background: rgba(37,211,102,0.4);
+  transform: translateY(-1px);
+}
+
+/* Scrollbar styling for backup lists */
+.backup-contacts-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.backup-contacts-list::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.1);
+  border-radius: 3px;
+}
+
+.backup-contacts-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 3px;
+}
+
+.backup-contacts-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.3);
+}

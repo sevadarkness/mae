@@ -3019,6 +3019,400 @@ window.whl_hooks_main = () => {
         }
     });
     
+    // ===== BACKUP FUNCTIONALITY =====
+    
+    /**
+     * Get all chats (contacts and groups) for backup
+     */
+    function getBackupContacts() {
+        try {
+            const CC = require('WAWebChatCollection');
+            const chats = CC?.ChatCollection?.getModelsArray?.() || [];
+            
+            const contacts = chats.map(c => {
+                const id = c.id?._serialized || '';
+                const name = c.name || c.formattedTitle || c.contact?.name || 'Sem nome';
+                const isGroup = id.endsWith('@g.us');
+                const memberCount = isGroup ? (c.groupMetadata?.participants?.length || 0) : 0;
+                
+                return {
+                    id,
+                    name,
+                    isGroup,
+                    memberCount
+                };
+            }).filter(c => c.id);
+            
+            console.log('[WHL Backup] Found', contacts.length, 'chats');
+            return { success: true, contacts };
+        } catch (e) {
+            console.error('[WHL Backup] Error getting contacts:', e);
+            return { success: false, error: e.message, contacts: [] };
+        }
+    }
+    
+    /**
+     * Get chat info by ID
+     */
+    function getBackupChatInfo(chatId) {
+        try {
+            const CC = require('WAWebChatCollection');
+            const chat = CC?.ChatCollection?.get(chatId);
+            
+            if (!chat) {
+                return { success: false, error: 'Chat não encontrado' };
+            }
+            
+            const isGroup = chatId.endsWith('@g.us');
+            const memberCount = isGroup ? (chat.groupMetadata?.participants?.length || 0) : 0;
+            
+            return {
+                success: true,
+                chat: {
+                    id: chatId,
+                    name: chat.name || chat.formattedTitle || 'Sem nome',
+                    isGroup,
+                    memberCount
+                }
+            };
+        } catch (e) {
+            console.error('[WHL Backup] Error getting chat info:', e);
+            return { success: false, error: e.message };
+        }
+    }
+    
+    /**
+     * Get messages from a chat with loadEarlierMsgs approach
+     */
+    async function getActiveChatMessages(chatId, limit = 10000) {
+        try {
+            console.log('[WHL Backup] Loading messages for chat:', chatId, 'limit:', limit);
+            
+            const CC = require('WAWebChatCollection');
+            const chat = CC?.ChatCollection?.get(chatId);
+            
+            if (!chat) {
+                throw new Error('Chat não encontrado');
+            }
+            
+            // Get message collection
+            const msgs = chat.msgs;
+            if (!msgs) {
+                throw new Error('Message collection não disponível');
+            }
+            
+            // Load earlier messages
+            let loadedCount = msgs.length || 0;
+            let attempts = 0;
+            const maxAttempts = Math.ceil(limit / 30); // WhatsApp loads ~30 msgs at a time
+            
+            while (loadedCount < limit && attempts < maxAttempts) {
+                try {
+                    // Try to load earlier messages
+                    if (chat.loadEarlierMsgs) {
+                        await chat.loadEarlierMsgs();
+                    }
+                    
+                    await new Promise(r => setTimeout(r, 300)); // Wait for loading
+                    
+                    const newCount = msgs.length || 0;
+                    if (newCount === loadedCount) {
+                        // No more messages available
+                        break;
+                    }
+                    loadedCount = newCount;
+                    attempts++;
+                    
+                    // Report progress
+                    window.postMessage({
+                        type: 'WHL_BACKUP_PROGRESS',
+                        progress: Math.min(Math.round((loadedCount / limit) * 50), 50), // 0-50% for loading
+                        status: 'Carregando mensagens',
+                        currentCount: loadedCount,
+                        totalCount: limit
+                    }, window.location.origin);
+                } catch (e) {
+                    console.warn('[WHL Backup] Error loading earlier messages:', e);
+                    break;
+                }
+            }
+            
+            // Extract messages
+            const messages = [];
+            const msgArray = msgs.getModelsArray?.() || [];
+            
+            for (const msg of msgArray) {
+                if (messages.length >= limit) break;
+                
+                const msgData = {
+                    id: msg.id?.id || '',
+                    from: extractPhoneNumber(msg),
+                    body: msg.body || msg.caption || '',
+                    timestamp: msg.t ? msg.t * 1000 : Date.now(),
+                    type: msg.type || 'chat',
+                    isFromMe: msg.id?.fromMe || false
+                };
+                
+                messages.push(msgData);
+            }
+            
+            console.log('[WHL Backup] Extracted', messages.length, 'messages');
+            return { success: true, messages, count: messages.length };
+        } catch (e) {
+            console.error('[WHL Backup] Error getting messages:', e);
+            return { success: false, error: e.message, messages: [] };
+        }
+    }
+    
+    /**
+     * Generate HTML export
+     */
+    function generateHTML(messages, settings, chatName) {
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Backup - ${chatName}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0b141a; color: #e9edef; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { background: #202c33; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .message { background: #202c33; padding: 12px; margin-bottom: 8px; border-radius: 8px; }
+        .message.from-me { background: #005c4b; margin-left: 50px; }
+        .message-sender { font-weight: bold; color: #25d366; font-size: 13px; margin-bottom: 4px; }
+        .message-body { word-wrap: break-word; }
+        .message-time { font-size: 11px; color: #8696a0; margin-top: 4px; text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💾 ${chatName}</h1>
+            <p>Exportado em: ${new Date().toLocaleString('pt-BR')}</p>
+            <p>Total de mensagens: ${messages.length}</p>
+        </div>
+        ${messages.map(m => `
+            <div class="message ${m.isFromMe ? 'from-me' : ''}">
+                ${settings.includeSender ? `<div class="message-sender">${m.from}</div>` : ''}
+                <div class="message-body">${escapeHtml(m.body)}</div>
+                ${settings.includeDate ? `<div class="message-time">${new Date(m.timestamp).toLocaleString('pt-BR')}</div>` : ''}
+            </div>
+        `).join('')}
+    </div>
+</body>
+</html>`;
+        return html;
+    }
+    
+    /**
+     * Generate CSV export
+     */
+    function generateCSV(messages, settings) {
+        const headers = [];
+        if (settings.includeSender) headers.push('Remetente');
+        headers.push('Mensagem');
+        if (settings.includeDate) headers.push('Data/Hora');
+        
+        const rows = [headers.join(',')];
+        
+        messages.forEach(m => {
+            const row = [];
+            if (settings.includeSender) row.push(`"${(m.from || '').replace(/"/g, '""')}"`);
+            row.push(`"${(m.body || '').replace(/"/g, '""')}"`);
+            if (settings.includeDate) row.push(`"${new Date(m.timestamp).toLocaleString('pt-BR')}"`);
+            rows.push(row.join(','));
+        });
+        
+        return '\uFEFF' + rows.join('\n'); // BOM for Excel UTF-8
+    }
+    
+    /**
+     * Generate JSON export
+     */
+    function generateJSON(messages, settings, chatName) {
+        return JSON.stringify({
+            chat: chatName,
+            exportedAt: new Date().toISOString(),
+            messageCount: messages.length,
+            settings: settings,
+            messages: messages
+        }, null, 2);
+    }
+    
+    /**
+     * Generate TXT export
+     */
+    function generateTXT(messages, settings, chatName) {
+        const lines = [
+            `Backup de Conversa: ${chatName}`,
+            `Exportado em: ${new Date().toLocaleString('pt-BR')}`,
+            `Total de mensagens: ${messages.length}`,
+            '',
+            '='.repeat(60),
+            ''
+        ];
+        
+        messages.forEach(m => {
+            const parts = [];
+            if (settings.includeDate) {
+                parts.push(`[${new Date(m.timestamp).toLocaleString('pt-BR')}]`);
+            }
+            if (settings.includeSender) {
+                parts.push(`${m.from}:`);
+            }
+            parts.push(m.body);
+            lines.push(parts.join(' '));
+            lines.push('');
+        });
+        
+        return lines.join('\n');
+    }
+    
+    /**
+     * Download generated file
+     */
+    function downloadBackupFile(content, fileName, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+    
+    /**
+     * Start backup export
+     */
+    async function startBackupExport(settings) {
+        try {
+            console.log('[WHL Backup] Starting export with settings:', settings);
+            
+            // Get chat info
+            const chatInfo = getBackupChatInfo(settings.chatId);
+            if (!chatInfo.success) {
+                throw new Error(chatInfo.error);
+            }
+            
+            const chatName = chatInfo.chat.name;
+            
+            // Load messages
+            window.postMessage({
+                type: 'WHL_BACKUP_PROGRESS',
+                progress: 10,
+                status: 'Carregando mensagens...',
+                currentCount: 0,
+                totalCount: settings.limit
+            }, window.location.origin);
+            
+            const msgResult = await getActiveChatMessages(settings.chatId, settings.limit);
+            if (!msgResult.success) {
+                throw new Error(msgResult.error);
+            }
+            
+            let messages = msgResult.messages;
+            
+            // Apply date filter if needed
+            if (settings.dateFrom || settings.dateTo) {
+                const fromTs = settings.dateFrom ? new Date(settings.dateFrom).getTime() : 0;
+                const toTs = settings.dateTo ? new Date(settings.dateTo).getTime() : Date.now();
+                
+                messages = messages.filter(m => {
+                    return m.timestamp >= fromTs && m.timestamp <= toTs;
+                });
+            }
+            
+            // Generate file
+            window.postMessage({
+                type: 'WHL_BACKUP_PROGRESS',
+                progress: 60,
+                status: 'Gerando arquivo...',
+                currentCount: messages.length,
+                totalCount: messages.length
+            }, window.location.origin);
+            
+            let content, fileName, mimeType;
+            
+            switch (settings.format) {
+                case 'html':
+                    content = generateHTML(messages, settings, chatName);
+                    fileName = `backup_${chatName}_${Date.now()}.html`;
+                    mimeType = 'text/html;charset=utf-8';
+                    break;
+                case 'csv':
+                    content = generateCSV(messages, settings);
+                    fileName = `backup_${chatName}_${Date.now()}.csv`;
+                    mimeType = 'text/csv;charset=utf-8';
+                    break;
+                case 'json':
+                    content = generateJSON(messages, settings, chatName);
+                    fileName = `backup_${chatName}_${Date.now()}.json`;
+                    mimeType = 'application/json;charset=utf-8';
+                    break;
+                case 'txt':
+                    content = generateTXT(messages, settings, chatName);
+                    fileName = `backup_${chatName}_${Date.now()}.txt`;
+                    mimeType = 'text/plain;charset=utf-8';
+                    break;
+                default:
+                    throw new Error('Formato inválido');
+            }
+            
+            // Download file
+            window.postMessage({
+                type: 'WHL_BACKUP_PROGRESS',
+                progress: 90,
+                status: 'Baixando arquivo...'
+            }, window.location.origin);
+            
+            downloadBackupFile(content, fileName, mimeType);
+            
+            window.postMessage({
+                type: 'WHL_BACKUP_PROGRESS',
+                progress: 100,
+                status: 'Concluído!'
+            }, window.location.origin);
+            
+            return { success: true, fileName };
+        } catch (e) {
+            console.error('[WHL Backup] Export error:', e);
+            return { success: false, error: e.message };
+        }
+    }
+    
+    // ===== BACKUP MESSAGE LISTENERS =====
+    window.addEventListener('message', async (event) => {
+        if (event.origin !== window.location.origin || event.source !== window) return;
+        if (!event.data || !event.data.type) return;
+        
+        const { type } = event.data;
+        
+        if (type === 'WHL_BACKUP_GET_CONTACTS') {
+            const result = getBackupContacts();
+            window.postMessage({ type: 'WHL_BACKUP_GET_CONTACTS_RESULT', ...result }, window.location.origin);
+        }
+        
+        if (type === 'WHL_BACKUP_GET_CHAT_INFO') {
+            const { chatId } = event.data;
+            const result = getBackupChatInfo(chatId);
+            window.postMessage({ type: 'WHL_BACKUP_GET_CHAT_INFO_RESULT', ...result }, window.location.origin);
+        }
+        
+        if (type === 'WHL_BACKUP_START') {
+            const { settings } = event.data;
+            const result = await startBackupExport(settings);
+            window.postMessage({ type: 'WHL_BACKUP_START_RESULT', ...result }, window.location.origin);
+        }
+        
+        if (type === 'WHL_BACKUP_CANCEL') {
+            // TODO: Implement cancellation logic
+            window.postMessage({ type: 'WHL_BACKUP_CANCEL_RESULT', success: true }, window.location.origin);
+        }
+    });
+    
     // Expose helper functions for use by sidepanel and other components
     window.WHL_MessageContentHelpers = {
         isBase64Image: isBase64Image,
