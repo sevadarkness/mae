@@ -3249,7 +3249,7 @@ window.whl_hooks_main = () => {
             `Exportado em: ${new Date().toLocaleString('pt-BR')}`,
             `Total de mensagens: ${messages.length}`,
             '',
-            '='repeat(60),
+            '='.repeat(60),
             ''
         ];
         
