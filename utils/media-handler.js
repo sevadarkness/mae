@@ -9,21 +9,23 @@
 
     // ===== JSZip v3.10.1 Bundled Inline (Minified) =====
     // This is bundled inline to avoid CSP issues with external scripts
-    // Full JSZip library will be added here - for now using a stub that needs to be replaced
+    // For now, we rely on CDN version loaded in sidepanel.html
+    // If CDN fails, operations will fail gracefully with error message
     
     const JSZipStub = {
-        loadAsync: async (data) => {
-            console.warn('[MediaHandler] JSZip not yet bundled - using stub');
-            return {
-                file: () => null,
-                folder: () => null,
-                generateAsync: async () => new Blob()
-            };
+        // Constructor stub
+        file: () => JSZipStub,
+        folder: () => JSZipStub,
+        generateAsync: async () => {
+            throw new Error('[MediaHandler] JSZip not available - ensure it is loaded from CDN');
         }
     };
     
-    // Use window.JSZip if available (from CDN in sidepanel), otherwise use stub
-    const JSZip = window.JSZip || JSZipStub;
+    // Use window.JSZip if available (from CDN in sidepanel), otherwise use stub that throws
+    const JSZip = window.JSZip || function() { 
+        throw new Error('[MediaHandler] JSZip not available - ensure it is loaded from CDN');
+    };
+    JSZip.prototype = window.JSZip?.prototype || {};
 
     // ===== CONSTANTS =====
     const CDNS = [
@@ -255,7 +257,7 @@
             );
             
             // Generate filename
-            const timestamp = msg.t || Date.now();
+            const timestamp = msg.t || Math.floor(Date.now() / 1000); // Ensure seconds
             const ext = getExtensionFromMime(mimetype);
             const filename = `${mediaType}_${timestamp}${ext}`;
             

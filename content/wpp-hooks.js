@@ -3398,6 +3398,12 @@ window.whl_hooks_main = () => {
             
             downloadBackupFile(content, fileName, mimeType);
             
+            window.postMessage({
+                type: 'WHL_BACKUP_PROGRESS',
+                progress: 75,
+                status: 'Arquivo de texto baixado.'
+            }, window.location.origin);
+            
             // Export media if requested
             let mediaResults = null;
             const exportMedia = settings.exportMedia;
@@ -3406,7 +3412,7 @@ window.whl_hooks_main = () => {
             if (hasMediaToExport && window.MediaHandler) {
                 window.postMessage({
                     type: 'WHL_BACKUP_PROGRESS',
-                    progress: 70,
+                    progress: 80,
                     status: 'Exportando mídias...'
                 }, window.location.origin);
                 
