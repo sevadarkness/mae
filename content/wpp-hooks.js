@@ -3153,6 +3153,34 @@ window.whl_hooks_main = () => {
                     isFromMe: msg.id?.fromMe || false
                 };
                 
+                // Extract media metadata if present
+                if (msg.type === 'image' || msg.type === 'video' || msg.type === 'audio' || 
+                    msg.type === 'ptt' || msg.type === 'document' || msg.type === 'sticker') {
+                    
+                    // Add media-specific fields needed for download/decryption
+                    msgData.mediaData = {
+                        directPath: msg.directPath || msg.__x_directPath || null,
+                        mediaKey: msg.mediaKey || msg.__x_mediaKey || null,
+                        mimetype: msg.mimetype || msg.__x_mimetype || 'application/octet-stream',
+                        filehash: msg.filehash || msg.__x_filehash || null,
+                        encFilehash: msg.encFilehash || msg.__x_encFilehash || null,
+                        uploadhash: msg.uploadhash || msg.__x_uploadhash || null,
+                        size: msg.size || msg.__x_size || 0,
+                        mediaKeyTimestamp: msg.mediaKeyTimestamp || msg.__x_mediaKeyTimestamp || null,
+                        height: msg.height || msg.__x_height || null,
+                        width: msg.width || msg.__x_width || null,
+                        caption: msg.caption || msg.__x_caption || '',
+                        filename: msg.filename || msg.__x_filename || null,
+                        pageCount: msg.pageCount || msg.__x_pageCount || null
+                    };
+                    
+                    // Flatten media data to top level for easier access by MediaHandler
+                    msgData.directPath = msgData.mediaData.directPath;
+                    msgData.mediaKey = msgData.mediaData.mediaKey;
+                    msgData.mimetype = msgData.mediaData.mimetype;
+                    msgData.t = msg.t || Math.floor(Date.now() / 1000); // WhatsApp timestamp in seconds
+                }
+                
                 messages.push(msgData);
             }
             
@@ -3288,6 +3316,15 @@ window.whl_hooks_main = () => {
      * Start backup export
      */
     async function startBackupExport(settings) {
+        // Progress constants for better maintainability
+        const PROGRESS = {
+            START: 10,
+            MESSAGES_LOADED: 60,
+            TEXT_READY: 75,
+            MEDIA_START: 80,
+            COMPLETE: 100
+        };
+        
         try {
             console.log('[WHL Backup] Starting export with settings:', settings);
             
@@ -3302,7 +3339,7 @@ window.whl_hooks_main = () => {
             // Load messages
             window.postMessage({
                 type: 'WHL_BACKUP_PROGRESS',
-                progress: 10,
+                progress: PROGRESS.START,
                 status: 'Carregando mensagens...',
                 currentCount: 0,
                 totalCount: settings.limit
@@ -3328,7 +3365,7 @@ window.whl_hooks_main = () => {
             // Generate file
             window.postMessage({
                 type: 'WHL_BACKUP_PROGRESS',
-                progress: 60,
+                progress: PROGRESS.MESSAGES_LOADED,
                 status: 'Gerando arquivo...',
                 currentCount: messages.length,
                 totalCount: messages.length
@@ -3372,11 +3409,97 @@ window.whl_hooks_main = () => {
             
             window.postMessage({
                 type: 'WHL_BACKUP_PROGRESS',
-                progress: 100,
+                progress: PROGRESS.TEXT_READY,
+                status: 'Arquivo de texto baixado.'
+            }, window.location.origin);
+            
+            // Export media if requested
+            let mediaResults = null;
+            const exportMedia = settings.exportMedia;
+            const hasMediaToExport = exportMedia && (exportMedia.images || exportMedia.audios || exportMedia.docs);
+            
+            if (hasMediaToExport && window.MediaHandler) {
+                window.postMessage({
+                    type: 'WHL_BACKUP_PROGRESS',
+                    progress: PROGRESS.MEDIA_START,
+                    status: 'Exportando mídias...'
+                }, window.location.origin);
+                
+                try {
+                    // Filter messages to get only those with media
+                    const mediaMessages = messages.filter(m => {
+                        const type = m.type;
+                        return (type === 'image' && exportMedia.images) ||
+                               ((type === 'audio' || type === 'ptt') && exportMedia.audios) ||
+                               (type === 'document' && exportMedia.docs);
+                    });
+                    
+                    if (mediaMessages.length > 0) {
+                        // Download and create ZIPs
+                        mediaResults = await window.MediaHandler.downloadMediaForExport(
+                            mediaMessages,
+                            {
+                                exportImages: exportMedia.images,
+                                exportAudios: exportMedia.audios,
+                                exportDocs: exportMedia.docs
+                            },
+                            (progress) => {
+                                // Report media progress
+                                if (progress.type === 'media') {
+                                    window.postMessage({
+                                        type: 'WHL_BACKUP_MEDIA_PROGRESS',
+                                        mediaType: progress.groupName,
+                                        current: progress.current,
+                                        total: progress.total,
+                                        failed: progress.failed,
+                                        progress: Math.round((progress.current / progress.total) * 100)
+                                    }, window.location.origin);
+                                } else if (progress.type === 'zip') {
+                                    window.postMessage({
+                                        type: 'WHL_BACKUP_ZIP_PROGRESS',
+                                        zipName: progress.groupName,
+                                        status: progress.status
+                                    }, window.location.origin);
+                                }
+                            }
+                        );
+                        
+                        // Download each ZIP file
+                        if (mediaResults.images) {
+                            downloadBackupFile(mediaResults.images.blob, 
+                                             `${chatName}_images_${Date.now()}.zip`, 
+                                             'application/zip');
+                        }
+                        if (mediaResults.audios) {
+                            downloadBackupFile(mediaResults.audios.blob, 
+                                             `${chatName}_audios_${Date.now()}.zip`, 
+                                             'application/zip');
+                        }
+                        if (mediaResults.documents) {
+                            downloadBackupFile(mediaResults.documents.blob, 
+                                             `${chatName}_documents_${Date.now()}.zip`, 
+                                             'application/zip');
+                        }
+                    }
+                } catch (mediaError) {
+                    console.error('[WHL Backup] Media export error:', mediaError);
+                    // Continue even if media export fails
+                }
+            }
+            
+            window.postMessage({
+                type: 'WHL_BACKUP_PROGRESS',
+                progress: PROGRESS.COMPLETE,
                 status: 'Concluído!'
             }, window.location.origin);
             
-            return { success: true, fileName };
+            return { 
+                success: true, 
+                fileName,
+                mediaResults: mediaResults ? {
+                    stats: mediaResults.stats
+                } : null
+            };
         } catch (e) {
             console.error('[WHL Backup] Export error:', e);
             return { success: false, error: e.message };

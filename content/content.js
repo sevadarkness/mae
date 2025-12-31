@@ -100,6 +100,22 @@
   
   // Injetar os hooks imediatamente
   injectWppHooks();
+  
+  // Inject MediaHandler for media download/decryption support
+  function injectMediaHandler() {
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('utils/media-handler.js');
+    script.onload = () => {
+      whlLog.info('MediaHandler injetado');
+    };
+    script.onerror = () => {
+      whlLog.error('Erro ao injetar MediaHandler');
+    };
+    (document.head || document.documentElement).appendChild(script);
+  }
+  
+  // Inject MediaHandler after WPP Hooks
+  setTimeout(injectMediaHandler, 500);
 
   // Helper function to safely get icon URLs
   function getIconURL(iconName) {
