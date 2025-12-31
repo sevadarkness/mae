@@ -137,6 +137,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     // Campaign management actions
     START_CAMPAIGN_WORKER: handleStartCampaign,
+    START_SCHEDULED_CAMPAIGN: handleStartScheduledCampaign,
     PAUSE_CAMPAIGN: handlePauseCampaign,
     RESUME_CAMPAIGN: handleResumeCampaign,
     STOP_CAMPAIGN: handleStopCampaign,
@@ -377,6 +378,31 @@ async function handleStartCampaign(message, sender, sendResponse) {
   sendResponse(result);
 }
 
+async function handleStartScheduledCampaign(message, sender, sendResponse) {
+  try {
+    const { scheduleId, queue, config } = message;
+    
+    // Validate required parameters
+    if (!scheduleId) {
+      throw new Error('scheduleId is required');
+    }
+    if (!queue || !Array.isArray(queue) || queue.length === 0) {
+      throw new Error('queue must be a non-empty array');
+    }
+    if (!config || typeof config !== 'object') {
+      throw new Error('config must be an object');
+    }
+    
+    console.log('[WHL Background] Starting scheduled campaign:', scheduleId);
+    
+    const result = await startCampaign(queue, config, scheduleId);
+    sendResponse(result);
+  } catch (error) {
+    console.error('[WHL Background] Error starting scheduled campaign:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
 function handlePauseCampaign(message, sender, sendResponse) {
   campaignState.isPaused = true;
   saveCampaignState();
@@ -405,7 +431,7 @@ function handleGetCampaignStatus(message, sender, sendResponse) {
   });
 }
 
-async function startCampaign(queue, config) {
+async function startCampaign(queue, config, scheduleId = null) {
   console.log('[WHL Background] Starting campaign with', queue.length, 'contacts');
   
   campaignQueue = queue;
@@ -413,7 +439,8 @@ async function startCampaign(queue, config) {
     isRunning: true,
     isPaused: false,
     currentIndex: 0,
-    config: config
+    config: config,
+    scheduleId: scheduleId // Store scheduleId to update status later
   };
   
   saveCampaignState();
@@ -422,6 +449,30 @@ async function startCampaign(queue, config) {
   processNextInQueue();
   
   return { success: true };
+}
+
+// Helper function to update schedule status
+async function updateScheduleStatus(scheduleId, status, completedAt = null) {
+  if (!scheduleId) return;
+  
+  try {
+    const data = await chrome.storage.local.get('whl_schedules');
+    const schedules = data.whl_schedules || [];
+    const schedule = schedules.find(s => s.id === scheduleId);
+    
+    if (schedule) {
+      schedule.status = status;
+      if (completedAt) {
+        schedule.completedAt = completedAt;
+      }
+      await chrome.storage.local.set({ whl_schedules: schedules });
+      console.log('[WHL Background] ✅ Schedule status updated:', scheduleId, '->', status);
+    } else {
+      console.warn('[WHL Background] Schedule not found for status update:', scheduleId);
+    }
+  } catch (e) {
+    console.error('[WHL Background] Error updating schedule status:', e);
+  }
 }
 
 // ===== ENVIO SIMPLIFICADO =====
@@ -471,6 +522,12 @@ async function processNextInQueue() {
     campaignState.isRunning = false;
     saveCampaignState();
     notifyPopup({ action: 'CAMPAIGN_COMPLETED' });
+    
+    // Update schedule status if this was a scheduled campaign
+    if (campaignState.scheduleId) {
+      await updateScheduleStatus(campaignState.scheduleId, 'completed', new Date().toISOString());
+    }
+    
     return;
   }
   
@@ -668,26 +725,62 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     // Check if it's a scheduler alarm
     if (alarm.name.startsWith('whl_schedule_')) {
       const scheduleId = alarm.name.replace('whl_schedule_', '');
-      console.log('[WHL Background] Alarm fired for schedule:', scheduleId);
+      console.log('[WHL Background] ⏰ Alarm fired for schedule:', scheduleId);
       
-      // Send message to sidepanel to execute schedule
-      // Note: Since sidepanel might not be open, we'll handle this in background
-      chrome.runtime.sendMessage({
-        action: 'SCHEDULE_ALARM_FIRED',
-        scheduleId: scheduleId
-      }).catch(() => {
-        // Sidepanel is not open, that's okay
-        console.log('[WHL Background] Sidepanel not open for scheduled campaign');
-      });
+      // Fetch schedule data from storage
+      const data = await chrome.storage.local.get('whl_schedules');
+      const schedules = data.whl_schedules || [];
+      const schedule = schedules.find(s => s.id === scheduleId);
       
-      // Try to open sidepanel to execute the schedule
+      if (!schedule) {
+        console.error('[WHL Background] Schedule not found with ID:', scheduleId);
+        return;
+      }
+      
+      if (schedule.status !== 'pending') {
+        console.log('[WHL Background] Schedule already executed with status:', schedule.status);
+        return;
+      }
+      
+      // Validate schedule data
+      if (!schedule.queue || !Array.isArray(schedule.queue) || schedule.queue.length === 0) {
+        console.error('[WHL Background] Schedule has invalid or empty queue:', scheduleId);
+        await updateScheduleStatus(scheduleId, 'failed');
+        return;
+      }
+      
+      if (!schedule.config || typeof schedule.config !== 'object') {
+        console.error('[WHL Background] Schedule has invalid config:', scheduleId);
+        await updateScheduleStatus(scheduleId, 'failed');
+        return;
+      }
+      
+      console.log('[WHL Background] 🚀 Starting scheduled campaign:', schedule.name);
+      
+      // Update status to 'running'
+      await updateScheduleStatus(scheduleId, 'running');
+      
+      // Start campaign directly in background
       try {
-        const tabs = await chrome.tabs.query({ url: 'https://web.whatsapp.com/*' });
-        if (tabs.length > 0) {
-          await chrome.sidePanel.open({ tabId: tabs[0].id });
+        const result = await startCampaign(schedule.queue, schedule.config, scheduleId);
+        
+        if (result.success) {
+          console.log('[WHL Background] ✅ Scheduled campaign started:', schedule.name);
+          
+          // Send notification (optional - if active listeners are available)
+          chrome.runtime.sendMessage({
+            action: 'SCHEDULE_STARTED',
+            scheduleName: schedule.name
+          }).catch(() => {
+            // No active listeners available, that's okay
+          });
+        } else {
+          console.error('[WHL Background] ❌ Failed to start scheduled campaign:', result.error);
+          await updateScheduleStatus(scheduleId, 'failed');
         }
-      } catch (e) {
-        console.warn('[WHL Background] Could not open sidepanel for scheduled campaign:', e);
+      } catch (error) {
+        console.error('[WHL Background] ❌ Exception starting scheduled campaign:', error);
+        await updateScheduleStatus(scheduleId, 'failed');
       }
     }
   } catch (error) {
