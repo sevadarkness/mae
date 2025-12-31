@@ -3153,6 +3153,34 @@ window.whl_hooks_main = () => {
                     isFromMe: msg.id?.fromMe || false
                 };
                 
+                // Extract media metadata if present
+                if (msg.type === 'image' || msg.type === 'video' || msg.type === 'audio' || 
+                    msg.type === 'ptt' || msg.type === 'document' || msg.type === 'sticker') {
+                    
+                    // Add media-specific fields needed for download/decryption
+                    msgData.mediaData = {
+                        directPath: msg.directPath || msg.__x_directPath || null,
+                        mediaKey: msg.mediaKey || msg.__x_mediaKey || null,
+                        mimetype: msg.mimetype || msg.__x_mimetype || 'application/octet-stream',
+                        filehash: msg.filehash || msg.__x_filehash || null,
+                        encFilehash: msg.encFilehash || msg.__x_encFilehash || null,
+                        uploadhash: msg.uploadhash || msg.__x_uploadhash || null,
+                        size: msg.size || msg.__x_size || 0,
+                        mediaKeyTimestamp: msg.mediaKeyTimestamp || msg.__x_mediaKeyTimestamp || null,
+                        height: msg.height || msg.__x_height || null,
+                        width: msg.width || msg.__x_width || null,
+                        caption: msg.caption || msg.__x_caption || '',
+                        filename: msg.filename || msg.__x_filename || null,
+                        pageCount: msg.pageCount || msg.__x_pageCount || null
+                    };
+                    
+                    // Flatten media data to top level for easier access by MediaHandler
+                    msgData.directPath = msgData.mediaData.directPath;
+                    msgData.mediaKey = msgData.mediaData.mediaKey;
+                    msgData.mimetype = msgData.mediaData.mimetype;
+                    msgData.t = msg.t || Math.floor(Date.now() / 1000);
+                }
+                
                 messages.push(msgData);
             }
             
