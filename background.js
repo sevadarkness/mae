@@ -381,6 +381,18 @@ async function handleStartCampaign(message, sender, sendResponse) {
 async function handleStartScheduledCampaign(message, sender, sendResponse) {
   try {
     const { scheduleId, queue, config } = message;
+    
+    // Validate required parameters
+    if (!scheduleId) {
+      throw new Error('scheduleId is required');
+    }
+    if (!queue || !Array.isArray(queue) || queue.length === 0) {
+      throw new Error('queue must be a non-empty array');
+    }
+    if (!config || typeof config !== 'object') {
+      throw new Error('config must be an object');
+    }
+    
     console.log('[WHL Background] Starting scheduled campaign:', scheduleId);
     
     const result = await startCampaign(queue, config, scheduleId);
@@ -709,12 +721,27 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       const schedule = schedules.find(s => s.id === scheduleId);
       
       if (!schedule) {
-        console.error('[WHL Background] Schedule not found:', scheduleId);
+        console.error('[WHL Background] Schedule not found with ID:', scheduleId);
         return;
       }
       
       if (schedule.status !== 'pending') {
-        console.log('[WHL Background] Schedule already executed:', schedule.status);
+        console.log('[WHL Background] Schedule already executed with status:', schedule.status);
+        return;
+      }
+      
+      // Validate schedule data
+      if (!schedule.queue || !Array.isArray(schedule.queue) || schedule.queue.length === 0) {
+        console.error('[WHL Background] Schedule has invalid or empty queue:', scheduleId);
+        schedule.status = 'failed';
+        await chrome.storage.local.set({ whl_schedules: schedules });
+        return;
+      }
+      
+      if (!schedule.config || typeof schedule.config !== 'object') {
+        console.error('[WHL Background] Schedule has invalid config:', scheduleId);
+        schedule.status = 'failed';
+        await chrome.storage.local.set({ whl_schedules: schedules });
         return;
       }
       
