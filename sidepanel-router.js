@@ -197,6 +197,9 @@
     } else if (safeView === 'config') {
       configInit();
       configLoad();
+    } else if (safeView === 'backup') {
+      backupInit();
+      backupRefresh();
     } else if (safeView === 'grupos' || safeView === 'groups') {
       // UI do v6 já tem seu próprio JS (sidepanel.js). Nada a fazer aqui.
     }
@@ -1636,6 +1639,285 @@
       console.error('[WHL] Erro ao carregar configurações de notificação:', e);
     }
   }
+
+  // ========= Backup =========
+  let backupBound = false;
+  let backupAllContacts = [];
+  let backupSelectedChatId = null;
+  let backupExporting = false;
+
+  function backupInit() {
+    if (backupBound) return;
+    backupBound = true;
+
+    // Bind event listeners
+    $('backup_load_contacts')?.addEventListener('click', backupLoadContacts);
+    $('backup_refresh_contacts')?.addEventListener('click', backupLoadContacts);
+    $('backup_start')?.addEventListener('click', backupStartExport);
+    $('backup_cancel')?.addEventListener('click', backupCancelExport);
+    
+    // Search input
+    const searchInput = $('backup_search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        backupFilterContacts(query);
+      });
+    }
+  }
+
+  function backupRefresh() {
+    // Reset state
+    $('backup_status').textContent = 'Pronto.';
+  }
+
+  async function backupLoadContacts() {
+    const status = $('backup_status');
+    if (status) status.textContent = '⏳ Carregando chats...';
+
+    try {
+      const resp = await motor('GET_BACKUP_CONTACTS');
+      if (resp && resp.contacts) {
+        backupAllContacts = resp.contacts;
+        backupRenderContactsList(backupAllContacts);
+        
+        // Show search and list
+        const searchContainer = $('backup_search_container');
+        const listContainer = $('backup_contacts_list');
+        const refreshBtn = $('backup_refresh_contacts');
+        
+        if (searchContainer) searchContainer.style.display = '';
+        if (listContainer) listContainer.style.display = '';
+        if (refreshBtn) refreshBtn.style.display = '';
+        
+        if (status) status.textContent = `✅ ${backupAllContacts.length} chats carregados.`;
+      } else {
+        if (status) status.textContent = '⚠️ Nenhum chat encontrado.';
+      }
+    } catch (e) {
+      if (status) status.textContent = `❌ ${e.message || e}`;
+    }
+  }
+
+  function backupFilterContacts(query) {
+    if (!query) {
+      backupRenderContactsList(backupAllContacts);
+      return;
+    }
+
+    const filtered = backupAllContacts.filter(c => {
+      const name = (c.name || '').toLowerCase();
+      const id = (c.id || '').toLowerCase();
+      return name.includes(query) || id.includes(query);
+    });
+
+    backupRenderContactsList(filtered);
+  }
+
+  function backupRenderContactsList(contacts) {
+    const list = $('backup_contacts_list');
+    if (!list) return;
+
+    if (!contacts || contacts.length === 0) {
+      list.innerHTML = '<div style="padding:20px;text-align:center;opacity:0.7">Nenhum chat encontrado.</div>';
+      return;
+    }
+
+    list.innerHTML = contacts.map(c => {
+      const icon = c.isGroup ? '👥' : '👤';
+      const type = c.isGroup ? 'Grupo' : 'Contato';
+      const name = escapeHtml(c.name || 'Sem nome');
+      const id = escapeHtml(c.id || '');
+      const selectedClass = (backupSelectedChatId === c.id) ? 'selected' : '';
+
+      return `
+        <div class="backup-contact-item ${selectedClass}" data-chat-id="${id}">
+          <div class="backup-contact-icon">${icon}</div>
+          <div class="backup-contact-info">
+            <div class="backup-contact-name">${name}</div>
+            <div class="backup-contact-type">${type}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Add click handlers
+    list.querySelectorAll('.backup-contact-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const chatId = item.getAttribute('data-chat-id');
+        backupSelectContact(chatId);
+      });
+    });
+  }
+
+  async function backupSelectContact(chatId) {
+    backupSelectedChatId = chatId;
+
+    // Update UI to show selection
+    document.querySelectorAll('.backup-contact-item').forEach(item => {
+      if (item.getAttribute('data-chat-id') === chatId) {
+        item.classList.add('selected');
+      } else {
+        item.classList.remove('selected');
+      }
+    });
+
+    // Get chat info
+    try {
+      const resp = await motor('GET_BACKUP_CHAT_INFO', { chatId });
+      if (resp && resp.chat) {
+        const chat = resp.chat;
+        
+        // Show selected chat card
+        const selectedCard = $('backup_selected_chat');
+        const chatIcon = $('backup_chat_icon');
+        const chatName = $('backup_chat_name');
+        const chatType = $('backup_chat_type');
+        const optionsSection = $('backup_options_section');
+        const actionButtons = $('backup_action_buttons');
+        
+        if (selectedCard) selectedCard.style.display = 'flex';
+        if (chatIcon) chatIcon.textContent = chat.isGroup ? '👥' : '👤';
+        if (chatName) chatName.textContent = chat.name || 'Sem nome';
+        if (chatType) chatType.textContent = chat.isGroup ? `Grupo (${chat.memberCount || 0} membros)` : 'Contato individual';
+        if (optionsSection) optionsSection.style.display = '';
+        if (actionButtons) actionButtons.style.display = '';
+      }
+    } catch (e) {
+      $('backup_status').textContent = `❌ Erro ao obter informações: ${e.message || e}`;
+    }
+  }
+
+  async function backupStartExport() {
+    if (!backupSelectedChatId) {
+      $('backup_status').textContent = '⚠️ Selecione um chat primeiro.';
+      return;
+    }
+
+    if (backupExporting) {
+      $('backup_status').textContent = '⚠️ Exportação já em andamento.';
+      return;
+    }
+
+    backupExporting = true;
+
+    // Get settings
+    const format = $('backup_format')?.value || 'html';
+    const limit = $('backup_limit')?.value || '10000';
+    const dateFrom = $('backup_date_from')?.value || null;
+    const dateTo = $('backup_date_to')?.value || null;
+    const includeDate = $('backup_include_date')?.checked !== false;
+    const includeSender = $('backup_include_sender')?.checked !== false;
+    const exportImages = $('backup_export_images')?.checked || false;
+    const exportAudios = $('backup_export_audios')?.checked || false;
+    const exportDocs = $('backup_export_docs')?.checked || false;
+
+    const settings = {
+      chatId: backupSelectedChatId,
+      format,
+      limit: limit === 'all' ? 999999 : parseInt(limit, 10),
+      dateFrom,
+      dateTo,
+      includeDate,
+      includeSender,
+      exportMedia: {
+        images: exportImages,
+        audios: exportAudios,
+        docs: exportDocs
+      }
+    };
+
+    // Show progress
+    const progressContainer = $('backup_progress_container');
+    const startBtn = $('backup_start');
+    const cancelBtn = $('backup_cancel');
+    
+    if (progressContainer) progressContainer.style.display = '';
+    if (startBtn) startBtn.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = '';
+
+    $('backup_status').textContent = '📥 Iniciando exportação...';
+    $('backup_progress_text').textContent = '0%';
+    $('backup_progress_fill').style.width = '0%';
+    $('backup_progress_status').textContent = 'Preparando...';
+
+    try {
+      const resp = await motor('START_BACKUP', settings);
+      
+      if (resp && resp.success) {
+        $('backup_status').textContent = `✅ Exportação concluída! Arquivo baixado: ${resp.fileName || 'backup'}`;
+      } else {
+        $('backup_status').textContent = `❌ Erro: ${resp.error || 'Falha na exportação'}`;
+      }
+    } catch (e) {
+      $('backup_status').textContent = `❌ Erro: ${e.message || e}`;
+    } finally {
+      backupExporting = false;
+      if (progressContainer) progressContainer.style.display = 'none';
+      if (startBtn) startBtn.style.display = '';
+      if (cancelBtn) cancelBtn.style.display = 'none';
+    }
+  }
+
+  function backupCancelExport() {
+    if (!backupExporting) return;
+
+    motor('CANCEL_BACKUP').catch(() => {});
+    backupExporting = false;
+
+    $('backup_status').textContent = '⏹️ Exportação cancelada.';
+    $('backup_progress_container').style.display = 'none';
+    $('backup_start').style.display = '';
+    $('backup_cancel').style.display = 'none';
+  }
+
+  // Listen for progress updates from content script
+  window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+    
+    if (event.data.type === 'WHL_BACKUP_PROGRESS') {
+      const { progress, status, currentCount, totalCount } = event.data;
+      
+      const progressFill = $('backup_progress_fill');
+      const progressText = $('backup_progress_text');
+      const progressStatus = $('backup_progress_status');
+      
+      if (progressFill) progressFill.style.width = `${progress}%`;
+      if (progressText) progressText.textContent = `${progress}%`;
+      if (progressStatus) {
+        const countText = (currentCount != null && totalCount != null) 
+          ? ` (${currentCount}/${totalCount})` 
+          : '';
+        progressStatus.textContent = `${status}${countText}`;
+      }
+    }
+    
+    if (event.data.type === 'WHL_BACKUP_MEDIA_PROGRESS') {
+      const { mediaType, current, total, progress } = event.data;
+      
+      const mediaContainer = $('backup_media_progress_container');
+      if (mediaContainer && mediaContainer.style.display === 'none') {
+        mediaContainer.style.display = '';
+      }
+      
+      if (mediaType === 'images') {
+        const count = $('backup_images_count');
+        const progressBar = $('backup_images_progress');
+        if (count) count.textContent = `${current}/${total}`;
+        if (progressBar) progressBar.style.width = `${progress}%`;
+      } else if (mediaType === 'audios') {
+        const count = $('backup_audios_count');
+        const progressBar = $('backup_audios_progress');
+        if (count) count.textContent = `${current}/${total}`;
+        if (progressBar) progressBar.style.width = `${progress}%`;
+      } else if (mediaType === 'docs') {
+        const count = $('backup_docs_count');
+        const progressBar = $('backup_docs_progress');
+        if (count) count.textContent = `${current}/${total}`;
+        if (progressBar) progressBar.style.width = `${progress}%`;
+      }
+    }
+  });
 
   // ========= Scheduler Alarm Handler =========
   // Listen for scheduled campaign alarms from background

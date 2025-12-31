@@ -6861,6 +6861,87 @@ if (cmd === 'GET_STATE') {
             return;
           }
 
+          // ===== BACKUP COMMANDS =====
+          if (cmd === 'GET_BACKUP_CONTACTS') {
+            window.postMessage({ type: 'WHL_BACKUP_GET_CONTACTS' }, window.location.origin);
+            
+            // Wait for response
+            const responsePromise = new Promise((resolve) => {
+              const handler = (event) => {
+                if (event.origin !== window.location.origin) return;
+                if (event.data?.type === 'WHL_BACKUP_GET_CONTACTS_RESULT') {
+                  window.removeEventListener('message', handler);
+                  resolve(event.data);
+                }
+              };
+              window.addEventListener('message', handler);
+              setTimeout(() => {
+                window.removeEventListener('message', handler);
+                resolve({ success: false, error: 'Timeout', contacts: [] });
+              }, 10000);
+            });
+            
+            const result = await responsePromise;
+            sendResponse(result);
+            return;
+          }
+
+          if (cmd === 'GET_BACKUP_CHAT_INFO') {
+            const { chatId } = msg;
+            window.postMessage({ type: 'WHL_BACKUP_GET_CHAT_INFO', chatId }, window.location.origin);
+            
+            // Wait for response
+            const responsePromise = new Promise((resolve) => {
+              const handler = (event) => {
+                if (event.origin !== window.location.origin) return;
+                if (event.data?.type === 'WHL_BACKUP_GET_CHAT_INFO_RESULT') {
+                  window.removeEventListener('message', handler);
+                  resolve(event.data);
+                }
+              };
+              window.addEventListener('message', handler);
+              setTimeout(() => {
+                window.removeEventListener('message', handler);
+                resolve({ success: false, error: 'Timeout' });
+              }, 5000);
+            });
+            
+            const result = await responsePromise;
+            sendResponse(result);
+            return;
+          }
+
+          if (cmd === 'START_BACKUP') {
+            const { settings } = msg;
+            window.postMessage({ type: 'WHL_BACKUP_START', settings }, window.location.origin);
+            
+            // Wait for response
+            const responsePromise = new Promise((resolve) => {
+              const handler = (event) => {
+                if (event.origin !== window.location.origin) return;
+                if (event.data?.type === 'WHL_BACKUP_START_RESULT') {
+                  window.removeEventListener('message', handler);
+                  resolve(event.data);
+                }
+              };
+              window.addEventListener('message', handler);
+              setTimeout(() => {
+                window.removeEventListener('message', handler);
+                resolve({ success: false, error: 'Timeout' });
+              }, 60000); // 60s timeout for backup
+            });
+            
+            const result = await responsePromise;
+            sendResponse(result);
+            return;
+          }
+
+          if (cmd === 'CANCEL_BACKUP') {
+            window.postMessage({ type: 'WHL_BACKUP_CANCEL' }, window.location.origin);
+            sendResponse({ success: true });
+            return;
+          }
+
           sendResponse({ success: false, error: 'cmd inválido' });
         } catch (e) {
           sendResponse({ success: false, error: e?.message || String(e) });
