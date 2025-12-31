@@ -23,6 +23,7 @@
 
     recover: 'whlViewRecover',
     config: 'whlViewConfig',
+    backup: 'whlViewBackup',
   };
 
   const MAX_QUEUE_RENDER = 500;   // evita travar o side panel em filas gigantes
